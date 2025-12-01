@@ -173,7 +173,15 @@
                 view_settings: "View Settings",
                 text_size_header: "Headers & Date Text Size",
                 text_size_cell: "Schedule Names Text Size",
-                border_thickness: "Border Thickness"
+                border_thickness: "Border Thickness",
+                frame_border: "Schedule Border Edges",
+                frame_color: "Border Color",
+                border_top: "Top",
+                border_right: "Right",
+                border_bottom: "Bottom",
+                border_left: "Left",
+                line_weight: "Grid Line Weight",
+                line_color: "Grid Line Color"
             },
             ar: {
                 title: "Scheduler V1.9.4",
@@ -308,7 +316,15 @@
                 view_settings: "إعدادات العرض",
                 text_size_header: "حجم خط العناوين والتاريخ",
                 text_size_cell: "حجم خط أسماء الموظفين",
-                border_thickness: "سمك الإطار"
+                border_thickness: "سمك الإطار",
+                frame_border: "حواف صندوق الجدول",
+                frame_color: "لون الحدود",
+                border_top: "أعلى",
+                border_right: "يمين",
+                border_bottom: "أسفل",
+                border_left: "يسار",
+                line_weight: "سماكة خطوط الجدول",
+                line_color: "لون خطوط الجدول"
             }
         };
 
@@ -364,7 +380,10 @@
             const [viewSettings, setViewSettings] = useState({
                 headerFontSize: 12, // For headers & Date column
                 cellFontSize: 10,   // For shift cells
-                borderWidth: '1px', // Default border
+                lineWeight: '1px', // Grid line weight
+                lineColor: '#e2e8f0',
+                frameBorders: { top: '1px', right: '1px', bottom: '1px', left: '1px' },
+                frameColor: '#e2e8f0'
             });
 
             // EXCEL CUSTOMIZATION STATE
@@ -438,6 +457,13 @@
                 const normalized = { ...settings };
                 if (!normalized.headerFontSize) normalized.headerFontSize = normalized.fontSize || 12;
                 if (!normalized.cellFontSize) normalized.cellFontSize = normalized.fontSize || 10;
+                if (!normalized.lineWeight) normalized.lineWeight = normalized.borderWidth || '1px';
+                if (!normalized.lineColor) normalized.lineColor = '#e2e8f0';
+                if (!normalized.frameBorders) {
+                    const inherited = normalized.borderWidth || normalized.lineWeight || '1px';
+                    normalized.frameBorders = { top: inherited, right: inherited, bottom: inherited, left: inherited };
+                }
+                if (!normalized.frameColor) normalized.frameColor = normalized.lineColor || '#e2e8f0';
                 return normalized;
             };
 
@@ -1042,8 +1068,12 @@
                      nsHead += `<div class="mt-1">${fmtTimes(getShiftTimeSummary('nightShift'))}</div>`;
                  }
 
-                 // Common border style for all cells
-                 const borderStyle = `border-bottom: ${viewSettings.borderWidth} solid #e2e8f0; border-${isRtl ? 'left' : 'right'}: ${viewSettings.borderWidth} solid #e2e8f0;`;
+                const lineWeight = viewSettings.lineWeight || '1px';
+                const lineColor = viewSettings.lineColor || '#e2e8f0';
+                const frameBorders = viewSettings.frameBorders || { top: lineWeight, right: lineWeight, bottom: lineWeight, left: lineWeight };
+                const frameColor = viewSettings.frameColor || lineColor;
+                const borderStyle = `border-bottom: ${lineWeight} solid ${lineColor}; border-${isRtl ? 'left' : 'right'}: ${lineWeight} solid ${lineColor}; border-color: ${lineColor}; border-style: solid;`;
+                const frameStyle = `border-top:${frameBorders.top} solid ${frameColor}; border-right:${frameBorders.right} solid ${frameColor}; border-bottom:${frameBorders.bottom} solid ${frameColor}; border-left:${frameBorders.left} solid ${frameColor}; border-color:${frameColor}; border-style:solid;`;
 
                  const tableRows = days.map(day => {
                      const dKey = formatDateKey(day);
@@ -1137,8 +1167,8 @@
                     <` + `/script>
                  </head>
                  <body class="bg-slate-100 min-h-screen p-4 md:p-8 text-slate-900">
-                    <div class="max-w-7xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200">
-                        <div class="p-6 border-b border-slate-200 bg-white flex flex-col items-center gap-4 sticky top-0 z-20 shadow-sm">
+                    <div class="max-w-7xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border" style="${frameStyle}">
+                        <div class="p-6 border-b bg-white flex flex-col items-center gap-4 sticky top-0 z-20 shadow-sm" style="border-bottom:${lineWeight} solid ${lineColor}; border-color:${lineColor}; border-style:solid;">
                             <h2 class="text-xl font-semibold text-indigo-600">${dateTitle}</h2>
                             <div class="w-full flex flex-col md:flex-row justify-between items-center gap-4">
                                 <div>
@@ -1155,12 +1185,12 @@
                                 <thead class="bg-white" style="color:${excelConfig.headerColor};font-weight:${weightValue(excelConfig.headerFontWeight)};font-size:${excelConfig.headerFontSize}px">
                                     <tr>${headerHtml}</tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${excelConfig.bodyFontSize}px">
+                                <tbody class="bg-white" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${excelConfig.bodyFontSize}px;border-color:${lineColor}; border-style:solid;">
                                     ${tableRows}
                                 </tbody>
                             </table>
                         </div>
-                        <div class="p-4 bg-slate-50 border-t border-slate-200 text-center text-xs" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${Math.max(8, excelConfig.bodyFontSize - 1)}px">
+                        <div class="p-4 bg-slate-50 border-t text-center text-xs" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${Math.max(8, excelConfig.bodyFontSize - 1)}px;border-top:${lineWeight} solid ${lineColor}; border-color:${lineColor}; border-style:solid;">
                             ${excelConfig.preparedBy ? t('prepared_by') + ': ' + excelConfig.preparedBy : ''}
                         </div>
                     </div>
@@ -1436,6 +1466,11 @@
                 });
             };
 
+            const lineWeight = viewSettings.lineWeight || '1px';
+            const lineColor = viewSettings.lineColor || '#e2e8f0';
+            const frameBorders = viewSettings.frameBorders || { top: lineWeight, right: lineWeight, bottom: lineWeight, left: lineWeight };
+            const frameColor = viewSettings.frameColor || lineColor;
+
             return (
                 <div className={`min-h-screen p-2 md:p-8 ${lang === 'ar' ? 'font-[Cairo]' : ''}`}>
                     <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1604,10 +1639,10 @@
                             )}
                         </div>
 
-                        <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
+                        <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border overflow-hidden min-h-[600px] flex flex-col" style={{ borderTopWidth: frameBorders.top, borderRightWidth: frameBorders.right, borderBottomWidth: frameBorders.bottom, borderLeftWidth: frameBorders.left, borderColor: frameColor, borderStyle: 'solid' }}>
                             {activeTab === 'schedule' && (
                                 <div className="flex flex-col h-full">
-                                    <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center sticky top-0 gap-4">
+                                    <div className="p-4 border-b bg-slate-50 flex flex-wrap justify-between items-center sticky top-0 gap-4" style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                         <div className="flex items-center gap-4">
                                             <h2 className="font-bold text-slate-700">{t('view_title')}</h2>
                                             <div className="flex items-center bg-white border border-slate-300 rounded-md px-2 py-1 shadow-sm">
@@ -1629,11 +1664,11 @@
                                     <div className="overflow-auto flex-1 p-0 custom-scroll">
                                         <table className="w-full text-left border-collapse table-fixed">
                                             <thead className="bg-white sticky top-0 z-10 shadow-sm">
-                                                <tr style={{ borderBottomWidth: viewSettings.borderWidth }}>
+                                                <tr style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                     {/* FIXED: Date column with fixed width and center alignment */}
-                                                    <th className="p-3 bg-slate-50 text-slate-500 font-bold uppercase text-center w-[120px]" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: viewSettings.borderWidth, width: '120px' }}>{t('date_col')}</th>
+                                                    <th className="p-3 bg-slate-50 text-slate-500 font-bold uppercase text-center w-[120px]" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid', width: '120px' }}>{t('date_col')}</th>
                                                     
-                                                    <th className="p-3 bg-amber-50/30 text-amber-700 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>
+                                                    <th className="p-3 bg-amber-50/30 text-amber-700 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                         {t('morn_col')}
                                                         {showShiftTimes && (
                                                             <div className="font-normal mt-1 opacity-80 space-y-1" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
@@ -1641,7 +1676,7 @@
                                                             </div>
                                                         )}
                                                     </th>
-                                                    <th className="p-3 bg-indigo-50/30 text-indigo-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>
+                                                    <th className="p-3 bg-indigo-50/30 text-indigo-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                         {t('eve_col')}
                                                         {showShiftTimes && (
                                                             <div className="font-normal mt-1 opacity-80 space-y-1" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
@@ -1650,7 +1685,7 @@
                                                         )}
                                                     </th>
                                                     {enabledShifts.nightShift && (
-                                                        <th className="p-3 bg-purple-50/30 text-purple-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>
+                                                        <th className="p-3 bg-purple-50/30 text-purple-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                             {t('night_col')}
                                                             {showShiftTimes && (
                                                                 <div className="font-normal mt-1 opacity-80 space-y-1" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
@@ -1659,11 +1694,11 @@
                                                             )}
                                                         </th>
                                                     )}
-                                                    {enabledShifts.standby && <th className="p-3 bg-cyan-50/30 text-cyan-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>{t('standby_col')}</th>}
-                                                    <th className="p-3 text-slate-500 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: viewSettings.borderWidth }}>{t('off_col')}</th>
+                                                    {enabledShifts.standby && <th className="p-3 bg-cyan-50/30 text-cyan-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>{t('standby_col')}</th>}
+                                                    <th className="p-3 text-slate-500 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>{t('off_col')}</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-100">
+                                            <tbody className="" style={{ borderColor: lineColor, borderStyle: 'solid' }}>
                                                 {getCalculatedDays().map(day => {
                                                     const dKey = formatDateKey(day);
                                                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
@@ -1682,10 +1717,10 @@
                                                     if(enabledShifts.standby) shiftsToRender.push({ key: 'standby', start: null, end: null, bg: 'bg-cyan-100 border-cyan-300 text-cyan-900' });
                                                     
                                                     // FIX: Add dynamic border width style
-                                                    const cellStyle = { borderRightWidth: viewSettings.borderWidth, borderLeftWidth: viewSettings.borderWidth };
+                                                    const cellStyle = { borderRightWidth: lineWeight, borderLeftWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' };
 
                                                     return (
-                                                        <tr key={dKey} className={`group hover:bg-slate-50 ${isFri ? 'bg-slate-50/60' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`} style={{ borderBottomWidth: viewSettings.borderWidth }}>
+                                                        <tr key={dKey} className={`group hover:bg-slate-50 ${isFri ? 'bg-slate-50/60' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`} style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                             {/* FIXED: Date column cells center aligned */}
                                                             <td className="p-3 border-e border-slate-100 align-top text-center" style={{ ...cellStyle, width: '120px' }}>
                                                                 <div className="font-bold text-slate-700" style={{ fontSize: `${viewSettings.headerFontSize}px` }}>{formatShortDate(day)}</div>
@@ -2054,13 +2089,60 @@
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_size_cell')} ({viewSettings.cellFontSize}px)</label>
                                                         <input type="range" min="8" max="20" step="1" className="w-full accent-blue-600" value={viewSettings.cellFontSize} onChange={e=>setViewSettings({...viewSettings, cellFontSize: +e.target.value})} />
                                                     </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('border_thickness')}</label>
-                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.borderWidth} onChange={e=>setViewSettings({...viewSettings, borderWidth: e.target.value})}>
-                                                            <option value="1px">{t('thin')}</option>
-                                                            <option value="2px">{t('medium')}</option>
-                                                            <option value="3px">{t('thick')}</option>
-                                                        </select>
+                                                    <div className="md:col-span-2 space-y-2">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('frame_border')}</label>
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_top')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.top || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, top: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_right')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.right || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, right: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_bottom')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.bottom || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, bottom: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_left')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.left || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, left: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('frame_color')}</label>
+                                                            <input type="color" className="w-16 h-9 border border-slate-300 rounded" value={viewSettings.frameColor || '#e2e8f0'} onChange={e=>setViewSettings({...viewSettings, frameColor: e.target.value})} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_weight')}</label>
+                                                            <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.lineWeight} onChange={e=>setViewSettings({...viewSettings, lineWeight: e.target.value})}>
+                                                                <option value="1px">{t('thin')}</option>
+                                                                <option value="2px">{t('medium')}</option>
+                                                                <option value="3px">{t('thick')}</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_color')}</label>
+                                                            <input type="color" className="w-full h-10 border border-slate-300 rounded" value={viewSettings.lineColor || '#e2e8f0'} onChange={e=>setViewSettings({...viewSettings, lineColor: e.target.value})} />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
