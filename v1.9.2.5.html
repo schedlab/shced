@@ -126,11 +126,21 @@
                 office_name: "Office/Dept Name (Top)",
                 prepared_by: "Prepared By (Bottom)",
                 header_color: "Header Row Color",
+                header_text_color: "Header Text",
                 text_color: "Text Color",
+                header_weight: "Header Weight",
+                body_weight: "Body Weight",
+                weight_normal: "Normal",
+                weight_bold: "Bold",
                 font_size_header: "Header Size",
                 font_size_body: "Body Size",
                 header_image: "Header Image",
                 footer_image: "Footer Image",
+                header_align: "Header Position",
+                footer_align: "Footer Position",
+                align_left: "Left",
+                align_center: "Center",
+                align_right: "Right",
                 upload_image: "Upload",
                 remove_image: "Remove",
                 preview_mode: "Preview how the file will look (Approximate)",
@@ -144,7 +154,7 @@
                 ef_gray: "Grayscale",
                 ef_wash: "Washout",
                 ef_wash_gray: "Washout + Gray",
-                use_watermark: "Use as Watermark (Background)", 
+                use_watermark: "Use as Watermark (Background)",
                 watermark_image: "Background Image (Watermark)",
                 watermark_hint: "Check this to place the image BEHIND the data.",
                 rest_of_data: "Rest of data...",
@@ -252,11 +262,21 @@
                 office_name: "اسم المكتب/القسم (في الأعلى)",
                 prepared_by: "إعداد (في الأسفل)",
                 header_color: "لون صف العناوين",
+                header_text_color: "نص الترويسة",
                 text_color: "لون النص",
+                header_weight: "سمك خط الترويسة",
+                body_weight: "سمك خط المحتوى",
+                weight_normal: "عادي",
+                weight_bold: "عريض",
                 font_size_header: "حجم خط العنوان",
                 font_size_body: "حجم خط النص",
                 header_image: "صورة الترويسة (Header)",
                 footer_image: "صورة التذييل (Footer)",
+                header_align: "موضع الترويسة",
+                footer_align: "موضع التذييل",
+                align_left: "يسار",
+                align_center: "منتصف",
+                align_right: "يمين",
                 upload_image: "رفع صورة",
                 remove_image: "إزالة",
                 preview_mode: "معاينة تقريبية لشكل الملف",
@@ -356,18 +376,22 @@
                 headerColor: "#db6fab", // Header TEXT Color (kept for compat)
                 textColor: "#000000",
                 headerFontSize: 12,
+                headerFontWeight: 'bold',
                 bodyFontSize: 11,
+                bodyFontWeight: 'normal',
                 headerImage: null,
+                headerImageAlign: 'center',
                 footerImage: null,
-                watermarkImage: null, 
-                headerEffect: 'none', 
+                footerImageAlign: 'center',
+                watermarkImage: null,
+                headerEffect: 'none',
                 footerEffect: 'none',
-                watermarkEffect: 'none',
+                watermarkEffect: 'washout',
                 borderWeight: "thin",
-                mornCellColor: "#fef3c7", 
-                eveCellColor: "#e0e7ff",  
-                nightCellColor: "#f3e8ff", 
-                standbyCellColor: "#cffafe", 
+                mornCellColor: "#fef3c7",
+                eveCellColor: "#e0e7ff",
+                nightCellColor: "#f3e8ff",
+                standbyCellColor: "#cffafe",
                 offCellColor: "#f8fafc",
                 // NEW COLORS
                 headerRowColor: "#ffffff", // Background for headers
@@ -413,45 +437,67 @@
             const footerImgRef = useRef(null);
             const watermarkImgRef = useRef(null);
 
+            const normalizeViewSettings = (settings) => {
+                if (!settings) return null;
+                const normalized = { ...settings };
+                if (!normalized.headerFontSize) normalized.headerFontSize = normalized.fontSize || 12;
+                if (!normalized.cellFontSize) normalized.cellFontSize = normalized.fontSize || 10;
+                return normalized;
+            };
+
+            const mergeRequirements = (incomingRequirements) => {
+                const mergedReqs = { ...defaultRequirements };
+                if (incomingRequirements) {
+                    Object.keys(incomingRequirements).forEach(key => {
+                        mergedReqs[key] = { ...mergedReqs[key], ...incomingRequirements[key] };
+                    });
+                }
+                return mergedReqs;
+            };
+
+            const sanitizeExcelConfig = (config) => {
+                if (!config) return null;
+                const sanitized = { ...excelConfig, ...config };
+                delete sanitized.backgroundImage;
+                delete sanitized.useWatermark;
+
+                if (!['left','center','right'].includes(sanitized.headerImageAlign)) sanitized.headerImageAlign = 'center';
+                if (!['left','center','right'].includes(sanitized.footerImageAlign)) sanitized.footerImageAlign = 'center';
+                if (!['washout','washout_grayscale'].includes(sanitized.watermarkEffect)) sanitized.watermarkEffect = 'washout';
+                if (!['bold','normal'].includes(sanitized.headerFontWeight)) sanitized.headerFontWeight = 'bold';
+                if (!['bold','normal'].includes(sanitized.bodyFontWeight)) sanitized.bodyFontWeight = 'normal';
+                return sanitized;
+            };
+
+            const applyLoadedData = (data) => {
+                if (!data) return;
+                setEmployees(data.employees || employees);
+                setSchedule(data.schedule || {});
+                setEnabledShifts(data.enabledShifts || { nightShift: false, standby: false });
+                if (data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
+                if (data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
+                if (data.scheduleMode) setScheduleMode(data.scheduleMode);
+                if (data.rangeStart) setRangeStart(data.rangeStart);
+                if (data.rangeEnd) setRangeEnd(data.rangeEnd);
+
+                const normalizedView = normalizeViewSettings(data.viewSettings);
+                if (normalizedView) setViewSettings(normalizedView);
+
+                setRequirements(mergeRequirements(data.requirements));
+                setAvailability(data.availability || {});
+                setPreferences(data.preferences || {});
+                if (data.lang) setLang(data.lang);
+
+                const sanitizedExcel = sanitizeExcelConfig(data.excelConfig);
+                if (sanitizedExcel) setExcelConfig(sanitizedExcel);
+            };
+
             // --- Effects ---
             useEffect(() => {
                 try {
                     const saved = localStorage.getItem('scheduler_data_v1_9_3');
                     if (saved) {
-                        const data = JSON.parse(saved);
-                        setEmployees(data.employees || employees);
-                        setSchedule(data.schedule || {});
-                        setEnabledShifts(data.enabledShifts || { nightShift: false, standby: false });
-                        if (data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
-                        if (data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
-                        if (data.scheduleMode) setScheduleMode(data.scheduleMode);
-                        if (data.rangeStart) setRangeStart(data.rangeStart);
-                        if (data.rangeEnd) setRangeEnd(data.rangeEnd);
-                        if (data.viewSettings) {
-                             // Migration for font split
-                             const vs = data.viewSettings;
-                             if(!vs.headerFontSize) vs.headerFontSize = vs.fontSize || 12;
-                             if(!vs.cellFontSize) vs.cellFontSize = vs.fontSize || 10;
-                             setViewSettings(vs);
-                        }
-
-                        const mergedReqs = { ...defaultRequirements };
-                        if (data.requirements) {
-                            Object.keys(data.requirements).forEach(key => {
-                                mergedReqs[key] = { ...mergedReqs[key], ...data.requirements[key] };
-                            });
-                        }
-                        setRequirements(mergedReqs);
-                        
-                        setAvailability(data.availability || {});
-                        setPreferences(data.preferences || {});
-                        if(data.lang) setLang(data.lang);
-                        if(data.excelConfig) {
-                            const conf = {...excelConfig, ...data.excelConfig};
-                            if(conf.backgroundImage) delete conf.backgroundImage; 
-                            if(conf.useWatermark) delete conf.useWatermark; 
-                            setExcelConfig(conf);
-                        }
+                        applyLoadedData(JSON.parse(saved));
                     }
                 } catch (e) { console.error("Load failed", e); }
             }, []);
@@ -536,8 +582,8 @@
             };
 
             const formatShortDate = (date) => {
-                const monthAbbrs = TRANSLATIONS[lang].month_abbrs || TRANSLATIONS['en'].month_abbrs;
-                const month = monthAbbrs[date.getMonth()];
+                const months = TRANSLATIONS[lang].months || TRANSLATIONS['en'].months;
+                const month = months[date.getMonth()];
                 const day = String(date.getDate()).padStart(2, '0');
                 return `${month}/${day}`;
             };
@@ -573,30 +619,7 @@
                 reader.onload = (ev) => {
                     try {
                         const data = JSON.parse(ev.target.result);
-                        if(data.employees) setEmployees(data.employees);
-                        if(data.schedule) setSchedule(data.schedule);
-                        if(data.requirements) setRequirements(data.requirements);
-                        if(data.availability) setAvailability(data.availability);
-                        if(data.preferences) setPreferences(data.preferences);
-                        if(data.lang) setLang(data.lang);
-                        if(data.enabledShifts) setEnabledShifts(data.enabledShifts);
-                        if(data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
-                        if(data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
-                        if(data.scheduleMode) setScheduleMode(data.scheduleMode);
-                        if(data.rangeStart) setRangeStart(data.rangeStart);
-                        if(data.rangeEnd) setRangeEnd(data.rangeEnd);
-                        if(data.viewSettings) {
-                             const vs = data.viewSettings;
-                             if(!vs.headerFontSize) vs.headerFontSize = vs.fontSize || 12;
-                             if(!vs.cellFontSize) vs.cellFontSize = vs.fontSize || 10;
-                             setViewSettings(vs);
-                        }
-
-                        if(data.excelConfig) {
-                             const conf = data.excelConfig;
-                             if(conf.backgroundImage) delete conf.backgroundImage;
-                             setExcelConfig(conf);
-                        }
+                        applyLoadedData(data);
                         alert("Data loaded successfully!");
                     } catch (err) {
                         console.error(err);
@@ -724,7 +747,7 @@
                 let csv = `\uFEFF${header}`; 
                 days.forEach(day => {
                     const dKey = formatDateKey(day);
-                    const niceDate = day.toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB'); 
+                    const niceDate = formatShortDate(day);
                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
                     
                     const m = s.morning.map(id => employees.find(e => e.id === id)?.name).join(' & ');
@@ -799,10 +822,10 @@
                 
                 const headerArgb = hexToArgb(excelConfig.headerColor);
                 const textArgb = hexToArgb(excelConfig.textColor);
-                
-                const headerFont = { color: { argb: headerArgb }, bold: true, size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
-                const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: true, color: { argb: headerArgb } };
-                const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, color: { argb: textArgb } };
+
+                const headerFont = { color: { argb: headerArgb }, bold: excelConfig.headerFontWeight === 'bold', size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
+                const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: excelConfig.headerFontWeight === 'bold', color: { argb: headerArgb } };
+                const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: excelConfig.bodyFontWeight === 'bold', color: { argb: textArgb } };
                 
                 const bStyle = excelConfig.borderWeight || 'thin';
                 const borderStyle = { top: {style: bStyle}, left: {style: bStyle}, bottom: {style: bStyle}, right: {style: bStyle} };
@@ -831,8 +854,13 @@
                     if (imgWidth > 0 && imgHeight > 0) {
                         const targetHeight = 120;
                         const targetWidth = (imgWidth / imgHeight) * targetHeight;
+                        const tlCol = excelConfig.headerImageAlign === 'center'
+                            ? Math.max(0, (totalCols / 2) - 1)
+                            : excelConfig.headerImageAlign === 'right'
+                                ? Math.max(0, totalCols - 2.2)
+                                : 0.1;
                         sheet.addImage(imageId, {
-                            tl: { col: 0.1, row: 0.1 },
+                            tl: { col: tlCol, row: 0.1 },
                             ext: { width: targetWidth, height: targetHeight },
                             editAs: 'absolute'
                         });
@@ -877,7 +905,7 @@
                 // --- 5. DATA ROWS ---
                 days.forEach(day => {
                     const dKey = formatDateKey(day);
-                    const niceDate = day.toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB');
+                    const niceDate = formatShortDate(day);
                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
 
                     const getNames = (arr) => (arr || []).map(id => employees.find(e => e.id === id)?.name).join(' / ');
@@ -966,10 +994,15 @@
                     if (footWidth > 0 && footHeight > 0) {
                         const targetFootHeight = 90;
                         const targetFootWidth = (footWidth / footHeight) * targetFootHeight;
+                        const tlCol = excelConfig.footerImageAlign === 'center'
+                            ? Math.max(0, (totalCols / 2) - 1)
+                            : excelConfig.footerImageAlign === 'right'
+                                ? Math.max(0, totalCols - 2.2)
+                                : 0.1;
                         sheet.addImage(imageId, {
-                            tl: { col: 0.1, row: fImgRow - 1 + 0.1 },
+                            tl: { col: tlCol, row: fImgRow - 1 + 0.1 },
                             ext: { width: targetFootWidth, height: targetFootHeight },
-                            editAs: 'absolute' 
+                            editAs: 'absolute'
                         });
                     }
                 }
@@ -987,8 +1020,8 @@
                  if (scheduleMode === 'month') {
                      dateTitle = `${TRANSLATIONS[lang].months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
                  } else {
-                     const startLocale = new Date(rangeStart).toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB');
-                     const endLocale = new Date(rangeEnd).toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB');
+                     const startLocale = formatShortDate(new Date(rangeStart));
+                     const endLocale = formatShortDate(new Date(rangeEnd));
                      dateTitle = `${startLocale} ${t('to')} ${endLocale}`;
                  }
                  
@@ -1108,8 +1141,8 @@
                             <h2 class="text-xl font-semibold text-indigo-600">${dateTitle}</h2>
                             <div class="w-full flex flex-col md:flex-row justify-between items-center gap-4">
                                 <div>
-                                    <h1 class="text-2xl font-bold text-slate-800">${excelConfig.officeName || t('view_title')}</h1>
-                                    <div class="text-sm text-slate-500">${t('generated_in')} ${new Date().toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB')}</div>
+                                    <h1 class="text-2xl" style="color:${excelConfig.headerColor};font-weight:${excelConfig.headerFontWeight==='bold'?'700':'600'}">${excelConfig.officeName || t('view_title')}</h1>
+                                    <div class="text-sm" style="color:${excelConfig.textColor};font-weight:${excelConfig.bodyFontWeight==='bold'?'700':'500'}">${t('generated_in')} ${formatShortDate(new Date())}</div>
                                 </div>
                                 <div class="flex items-center bg-slate-50 border border-slate-300 rounded-md px-3 py-2 shadow-sm">
                                     <select onchange="highlightEmp(this)" class="bg-transparent border-none focus:ring-0 text-slate-700 outline-none text-sm font-medium cursor-pointer">${optionsHtml}</select>
@@ -1118,15 +1151,15 @@
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-white text-slate-500">
+                                <thead class="bg-white" style="color:${excelConfig.headerColor};font-weight:${excelConfig.headerFontWeight==='bold'?'700':'600'}">
                                     <tr>${headerHtml}</tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white">
+                                <tbody class="divide-y divide-slate-100 bg-white" style="color:${excelConfig.textColor};font-weight:${excelConfig.bodyFontWeight==='bold'?'700':'500'}">
                                     ${tableRows}
                                 </tbody>
                             </table>
                         </div>
-                        <div class="p-4 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">
+                        <div class="p-4 bg-slate-50 border-t border-slate-200 text-center text-xs" style="color:${excelConfig.textColor};font-weight:${excelConfig.bodyFontWeight==='bold'?'700':'500'}">
                             ${excelConfig.preparedBy ? t('prepared_by') + ': ' + excelConfig.preparedBy : ''}
                         </div>
                     </div>
@@ -1149,6 +1182,24 @@
                 const footFilter = getCssFilter(excelConfig.footerEffect);
                 const waterFilter = getCssFilter(excelConfig.watermarkEffect);
 
+                const headerJustify = excelConfig.headerImageAlign === 'left' ? 'justify-start' : excelConfig.headerImageAlign === 'right' ? 'justify-end' : 'justify-center';
+                const footerJustify = excelConfig.footerImageAlign === 'left' ? 'justify-start' : excelConfig.footerImageAlign === 'right' ? 'justify-end' : 'justify-center';
+
+                const previewColumns = [
+                    { key: 'date', label: t('date_col'), bg: excelConfig.dateColumnColor },
+                    { key: 'day', label: t('day'), bg: excelConfig.dateColumnColor },
+                    { key: 'morning', label: t('morn_col'), bg: excelConfig.mornCellColor },
+                    { key: 'night', label: t('eve_col'), bg: excelConfig.eveCellColor },
+                ];
+
+                if (enabledShifts.nightShift) previewColumns.push({ key: 'nightShift', label: t('night_col'), bg: excelConfig.nightCellColor });
+                if (enabledShifts.standby) previewColumns.push({ key: 'standby', label: t('standby_col'), bg: excelConfig.standbyCellColor });
+                previewColumns.push({ key: 'off', label: t('off_col'), bg: excelConfig.offCellColor });
+
+                const gridStyle = { gridTemplateColumns: `repeat(${previewColumns.length}, minmax(0, 1fr))` };
+                const headerWeight = excelConfig.headerFontWeight === 'bold' ? 'bold' : '600';
+                const bodyWeight = excelConfig.bodyFontWeight === 'bold' ? 'bold' : '500';
+
                 return (
                     <div className="w-full bg-slate-200 p-4 rounded-lg overflow-hidden flex justify-center">
                         <div className="bg-white w-[500px] min-h-[600px] shadow-2xl flex flex-col scale-90 md:scale-100 origin-top excel-preview-shadow text-slate-800 relative">
@@ -1157,40 +1208,46 @@
                                      <img src={excelConfig.watermarkImage} className="w-full h-full object-contain opacity-50" style={{ filter: waterFilter }} />
                                 </div>
                             )}
-                            <div className="h-24 w-full bg-slate-50 border-b border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10">
+                            <div className={`h-24 w-full bg-slate-50 border-b border-dashed border-slate-300 flex items-center ${headerJustify} relative overflow-hidden z-10 px-6`}>
                                 {excelConfig.headerImage ? (
-                                    <img src={excelConfig.headerImage} className="w-full h-full object-contain" style={{ filter: headFilter }} />
+                                    <img src={excelConfig.headerImage} className="h-full object-contain" style={{ filter: headFilter }} />
                                 ) : (
                                     <span className="text-xs text-slate-300 uppercase font-bold tracking-widest">{t('header_image')}</span>
                                 )}
                             </div>
-                            <div className="p-4 text-center font-bold text-lg border-b border-slate-100 z-10 relative" style={{ color: excelConfig.headerColor }}>
+                            <div className="p-4 text-center text-lg border-b border-slate-100 z-10 relative" style={{color: excelConfig.headerColor, fontWeight: headerWeight }}>
                                 {excelConfig.officeName || "Office Name"}
                             </div>
                             <div className="flex-1 p-4 z-10 relative">
                                 <div className="border border-slate-300 bg-white/50 backdrop-blur-[1px]">
                                     {/* Preview now shows header background */}
-                                    <div className="grid grid-cols-4 border-b border-slate-300 text-xs font-bold p-2 text-center" style={{ backgroundColor: excelConfig.headerRowColor, color: excelConfig.headerColor }}>
-                                        <div style={{ backgroundColor: 'transparent' }}>{t('date_col')}</div>
-                                        <div style={{ backgroundColor: 'transparent' }}>{t('day')}</div>
-                                        <div>{t('morn_col')}</div>
-                                        <div>{t('eve_col')}</div>
+                                    <div className="grid border-b border-slate-300 text-xs p-2 text-center" style={{ ...gridStyle, backgroundColor: excelConfig.headerRowColor, color: excelConfig.headerColor, fontWeight: headerWeight }}>
+                                        {previewColumns.map(col => (
+                                            <div key={col.key} style={{ backgroundColor: 'transparent' }}>{col.label}</div>
+                                        ))}
                                     </div>
                                     {[1,2,3].map(i => (
-                                        <div key={i} className="grid grid-cols-4 border-b border-slate-100 text-xs p-0 text-center text-slate-500">
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.dateColumnColor }}>--/--</div>
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.dateColumnColor }}>---</div>
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.mornCellColor }}>Emp 1 / Emp 2</div>
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.eveCellColor }}>Emp 3</div>
+                                        <div key={i} className="grid border-b border-slate-100 text-xs p-0 text-center" style={{ ...gridStyle, color: excelConfig.textColor, fontWeight: bodyWeight }}>
+                                            {previewColumns.map(col => {
+                                                let text = '';
+                                                if (col.key === 'date') text = '--/--';
+                                                else if (col.key === 'day') text = '---';
+                                                else if (col.key === 'morning') text = 'Emp 1 / Emp 2';
+                                                else if (col.key === 'night') text = 'Emp 3';
+                                                else if (col.key === 'nightShift') text = 'Emp 4';
+                                                else if (col.key === 'standby') text = t('standby');
+                                                else if (col.key === 'off') text = t('off');
+                                                return <div key={col.key} className="p-2" style={{ backgroundColor: col.bg }}>{text}</div>;
+                                            })}
                                         </div>
                                     ))}
                                     <div className="p-2 text-center text-xs text-slate-400 italic">... {t('rest_of_data')} ...</div>
                                 </div>
                             </div>
-                            <div className="p-4 pt-0 text-sm font-semibold flex justify-end z-10 relative">
-                                {t('prepared_by')}: {excelConfig.preparedBy || "..."}
+                            <div className="p-4 pt-0 text-sm flex justify-between items-center z-10 relative" style={{ color: excelConfig.textColor, fontWeight: bodyWeight }}>
+                                <span>{t('prepared_by')}: {excelConfig.preparedBy || "..."}</span>
                             </div>
-                            <div className="h-20 w-full bg-slate-50 border-t border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10">
+                            <div className={`h-20 w-full bg-slate-50 border-t border-dashed border-slate-300 flex items-center ${footerJustify} relative overflow-hidden z-10`}>
                                 {excelConfig.footerImage ? (
                                     <img src={excelConfig.footerImage} className="w-full h-full object-contain" style={{ filter: footFilter }} />
                                 ) : (
@@ -1485,22 +1542,54 @@
 
                                         return (
                                             <div key={emp.id} className={`text-sm ${cardBg}`}>
-                                                <div className="flex justify-between mb-1 items-center">
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="font-semibold text-slate-700">{emp.name}</span>
-                                                        {pref === 'night' && <Moon size={12} className="text-indigo-600"/>}
-                                                        {pref === 'morning' && <Sun size={12} className="text-amber-500"/>}
-                                                    </div>
-                                                    <span className={`font-mono px-2 py-0.5 rounded text-xs ${Math.abs(s.total - stats.avg) > 1.5 ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-100'}`}>{s.total}</span>
+                                            <div className="flex justify-between mb-1 items-center">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-semibold text-slate-700">{emp.name}</span>
+                                                    {pref === 'night' && <Moon size={12} className="text-indigo-600"/>}
+                                                    {pref === 'morning' && <Sun size={12} className="text-amber-500"/>}
                                                 </div>
-                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex w-full mb-1">
-                                                    <div className="bg-amber-400" style={{ width: `${s.total ? (s.morning / s.total) * 100 : 0}%` }}></div>
-                                                    <div className="bg-indigo-900" style={{ width: `${s.total ? (s.night / s.total) * 100 : 0}%` }}></div>
-                                                    {enabledShifts.nightShift && <div className="bg-purple-900" style={{ width: `${s.total ? (s.nightShift / s.total) * 100 : 0}%` }}></div>}
+                                                <span className={`font-mono px-2 py-0.5 rounded text-xs ${Math.abs(s.total - stats.avg) > 1.5 ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-100'}`}>{s.total}</span>
+                                            </div>
+                                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex w-full mb-1">
+                                                <div className="bg-amber-400" style={{ width: `${s.total ? (s.morning / s.total) * 100 : 0}%` }}></div>
+                                                <div className="bg-indigo-900" style={{ width: `${s.total ? (s.night / s.total) * 100 : 0}%` }}></div>
+                                                {enabledShifts.nightShift && <div className="bg-purple-900" style={{ width: `${s.total ? (s.nightShift / s.total) * 100 : 0}%` }}></div>}
+                                            </div>
+                                            <div className="flex flex-col gap-2 text-[11px] text-slate-600">
+                                                <div className="flex items-center justify-between gap-3 flex-wrap w-full">
+                                                    {[
+                                                        { key: 'morn', label: t('morn'), count: s.morning, dot: 'bg-amber-400', show: true },
+                                                        { key: 'eve', label: t('eve'), count: s.night, dot: 'bg-indigo-900', show: true },
+                                                        { key: 'night', label: t('night'), count: s.nightShift, dot: 'bg-purple-900', show: enabledShifts.nightShift }
+                                                    ]
+                                                        .filter(item => item.show)
+                                                        .map(item => (
+                                                            <div key={item.key} className="flex items-center gap-1">
+                                                                <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
+                                                                <span>{item.label}</span>
+                                                                <span className="font-semibold text-slate-800">{item.count}</span>
+                                                            </div>
+                                                        ))}
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-3 flex-wrap w-full">
+                                                    {[
+                                                        { key: 'standby', label: t('standby'), count: s.standbyCount, dot: 'bg-cyan-600', show: enabledShifts.standby },
+                                                        { key: 'rest', label: t('off'), count: s.rest, dot: 'bg-slate-400', show: true }
+                                                    ]
+                                                        .filter(item => item.show)
+                                                        .map(item => (
+                                                            <div key={item.key} className="flex items-center gap-1">
+                                                                <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
+                                                                <span>{item.label}</span>
+                                                                <span className="font-semibold text-slate-800">{item.count}</span>
+                                                            </div>
+                                                        ))}
                                                 </div>
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    );
+                                })}
                                 </div>
                             </div>
                             
@@ -1676,6 +1765,38 @@
                                                     <input type="text" className="w-full border p-2 rounded text-slate-700" value={excelConfig.preparedBy} onChange={e=>setExcelConfig({...excelConfig, preparedBy: e.target.value})} />
                                                 </div>
                                             </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_text_color')}</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.headerColor} onChange={e=>setExcelConfig({...excelConfig, headerColor: e.target.value})}/>
+                                                        <span className="text-xs text-slate-500">{t('header_text_color')}</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_color')}</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.textColor} onChange={e=>setExcelConfig({...excelConfig, textColor: e.target.value})}/>
+                                                        <span className="text-xs text-slate-500">{t('text_color')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_weight')}</label>
+                                                    <select value={excelConfig.headerFontWeight} onChange={e=>setExcelConfig({...excelConfig, headerFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                        <option value="normal">{t('weight_normal')}</option>
+                                                        <option value="bold">{t('weight_bold')}</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('body_weight')}</label>
+                                                    <select value={excelConfig.bodyFontWeight} onChange={e=>setExcelConfig({...excelConfig, bodyFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                        <option value="normal">{t('weight_normal')}</option>
+                                                        <option value="bold">{t('weight_bold')}</option>
+                                                    </select>
+                                                </div>
+                                            </div>
                                             <hr className="border-slate-100"/>
                                             <div>
                                                 <div className="flex justify-between items-center mb-2">
@@ -1696,6 +1817,14 @@
                                                                 <option value="grayscale">{t('ef_gray')}</option>
                                                                 <option value="washout">{t('ef_wash')}</option>
                                                                 <option value="washout_grayscale">{t('ef_wash_gray')}</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('header_align')}</label>
+                                                            <select value={excelConfig.headerImageAlign} onChange={e=>setExcelConfig({...excelConfig, headerImageAlign: e.target.value})} className="w-full text-xs p-1 border rounded">
+                                                                <option value="left">{t('align_left')}</option>
+                                                                <option value="center">{t('align_center')}</option>
+                                                                <option value="right">{t('align_right')}</option>
                                                             </select>
                                                         </div>
                                                     </div>
@@ -1724,6 +1853,14 @@
                                                                 <option value="washout_grayscale">{t('ef_wash_gray')}</option>
                                                             </select>
                                                         </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('footer_align')}</label>
+                                                            <select value={excelConfig.footerImageAlign} onChange={e=>setExcelConfig({...excelConfig, footerImageAlign: e.target.value})} className="w-full text-xs p-1 border rounded">
+                                                                <option value="left">{t('align_left')}</option>
+                                                                <option value="center">{t('align_center')}</option>
+                                                                <option value="right">{t('align_right')}</option>
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1743,8 +1880,6 @@
                                                         <div>
                                                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
                                                             <select value={excelConfig.watermarkEffect} onChange={e=>setExcelConfig({...excelConfig, watermarkEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                <option value="none">{t('ef_none')}</option>
-                                                                <option value="grayscale">{t('ef_gray')}</option>
                                                                 <option value="washout">{t('ef_wash')}</option>
                                                                 <option value="washout_grayscale">{t('ef_wash_gray')}</option>
                                                             </select>
