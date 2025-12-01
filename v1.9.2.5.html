@@ -413,45 +413,61 @@
             const footerImgRef = useRef(null);
             const watermarkImgRef = useRef(null);
 
+            const normalizeViewSettings = (settings) => {
+                if (!settings) return null;
+                const normalized = { ...settings };
+                if (!normalized.headerFontSize) normalized.headerFontSize = normalized.fontSize || 12;
+                if (!normalized.cellFontSize) normalized.cellFontSize = normalized.fontSize || 10;
+                return normalized;
+            };
+
+            const mergeRequirements = (incomingRequirements) => {
+                const mergedReqs = { ...defaultRequirements };
+                if (incomingRequirements) {
+                    Object.keys(incomingRequirements).forEach(key => {
+                        mergedReqs[key] = { ...mergedReqs[key], ...incomingRequirements[key] };
+                    });
+                }
+                return mergedReqs;
+            };
+
+            const sanitizeExcelConfig = (config) => {
+                if (!config) return null;
+                const sanitized = { ...excelConfig, ...config };
+                delete sanitized.backgroundImage;
+                delete sanitized.useWatermark;
+                return sanitized;
+            };
+
+            const applyLoadedData = (data) => {
+                if (!data) return;
+                setEmployees(data.employees || employees);
+                setSchedule(data.schedule || {});
+                setEnabledShifts(data.enabledShifts || { nightShift: false, standby: false });
+                if (data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
+                if (data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
+                if (data.scheduleMode) setScheduleMode(data.scheduleMode);
+                if (data.rangeStart) setRangeStart(data.rangeStart);
+                if (data.rangeEnd) setRangeEnd(data.rangeEnd);
+
+                const normalizedView = normalizeViewSettings(data.viewSettings);
+                if (normalizedView) setViewSettings(normalizedView);
+
+                setRequirements(mergeRequirements(data.requirements));
+                setAvailability(data.availability || {});
+                setPreferences(data.preferences || {});
+                if (data.lang) setLang(data.lang);
+
+                const sanitizedExcel = sanitizeExcelConfig(data.excelConfig);
+                if (sanitizedExcel) setExcelConfig(sanitizedExcel);
+            };
+
             // --- Effects ---
             useEffect(() => {
                 try {
                     const saved = localStorage.getItem('scheduler_data_v1_9_3');
                     if (saved) {
-                        const data = JSON.parse(saved);
-                        setEmployees(data.employees || employees);
-                        setSchedule(data.schedule || {});
-                        setEnabledShifts(data.enabledShifts || { nightShift: false, standby: false });
-                        if (data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
-                        if (data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
-                        if (data.scheduleMode) setScheduleMode(data.scheduleMode);
-                        if (data.rangeStart) setRangeStart(data.rangeStart);
-                        if (data.rangeEnd) setRangeEnd(data.rangeEnd);
-                        if (data.viewSettings) {
-                             // Migration for font split
-                             const vs = data.viewSettings;
-                             if(!vs.headerFontSize) vs.headerFontSize = vs.fontSize || 12;
-                             if(!vs.cellFontSize) vs.cellFontSize = vs.fontSize || 10;
-                             setViewSettings(vs);
-                        }
-
-                        const mergedReqs = { ...defaultRequirements };
-                        if (data.requirements) {
-                            Object.keys(data.requirements).forEach(key => {
-                                mergedReqs[key] = { ...mergedReqs[key], ...data.requirements[key] };
-                            });
-                        }
-                        setRequirements(mergedReqs);
-                        
-                        setAvailability(data.availability || {});
-                        setPreferences(data.preferences || {});
-                        if(data.lang) setLang(data.lang);
-                        if(data.excelConfig) {
-                            const conf = {...excelConfig, ...data.excelConfig};
-                            if(conf.backgroundImage) delete conf.backgroundImage; 
-                            if(conf.useWatermark) delete conf.useWatermark; 
-                            setExcelConfig(conf);
-                        }
+                        applyLoadedData(JSON.parse(saved));
                     }
                 } catch (e) { console.error("Load failed", e); }
             }, []);
@@ -573,30 +589,7 @@
                 reader.onload = (ev) => {
                     try {
                         const data = JSON.parse(ev.target.result);
-                        if(data.employees) setEmployees(data.employees);
-                        if(data.schedule) setSchedule(data.schedule);
-                        if(data.requirements) setRequirements(data.requirements);
-                        if(data.availability) setAvailability(data.availability);
-                        if(data.preferences) setPreferences(data.preferences);
-                        if(data.lang) setLang(data.lang);
-                        if(data.enabledShifts) setEnabledShifts(data.enabledShifts);
-                        if(data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
-                        if(data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
-                        if(data.scheduleMode) setScheduleMode(data.scheduleMode);
-                        if(data.rangeStart) setRangeStart(data.rangeStart);
-                        if(data.rangeEnd) setRangeEnd(data.rangeEnd);
-                        if(data.viewSettings) {
-                             const vs = data.viewSettings;
-                             if(!vs.headerFontSize) vs.headerFontSize = vs.fontSize || 12;
-                             if(!vs.cellFontSize) vs.cellFontSize = vs.fontSize || 10;
-                             setViewSettings(vs);
-                        }
-
-                        if(data.excelConfig) {
-                             const conf = data.excelConfig;
-                             if(conf.backgroundImage) delete conf.backgroundImage;
-                             setExcelConfig(conf);
-                        }
+                        applyLoadedData(data);
                         alert("Data loaded successfully!");
                     } catch (err) {
                         console.error(err);
