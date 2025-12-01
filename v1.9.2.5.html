@@ -1491,22 +1491,37 @@
                                                 <div className="bg-indigo-900" style={{ width: `${s.total ? (s.night / s.total) * 100 : 0}%` }}></div>
                                                 {enabledShifts.nightShift && <div className="bg-purple-900" style={{ width: `${s.total ? (s.nightShift / s.total) * 100 : 0}%` }}></div>}
                                             </div>
-                                            <div className="flex flex-wrap gap-2 text-[11px] text-slate-600">
-                                                {[
-                                                    { key: 'morn', label: t('morn'), count: s.morning, bg: 'bg-amber-50 border-amber-100', dot: 'bg-amber-400', show: true },
-                                                    { key: 'eve', label: t('eve'), count: s.night, bg: 'bg-indigo-50 border-indigo-100', dot: 'bg-indigo-900', show: true },
-                                                    { key: 'night', label: t('night'), count: s.nightShift, bg: 'bg-purple-50 border-purple-100', dot: 'bg-purple-900', show: enabledShifts.nightShift },
-                                                    { key: 'standby', label: t('standby'), count: s.standbyCount, bg: 'bg-cyan-50 border-cyan-100', dot: 'bg-cyan-600', show: enabledShifts.standby },
-                                                    { key: 'rest', label: t('off'), count: s.rest, bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400', show: true }
-                                                ]
-                                                    .filter(item => item.show)
-                                                    .map(item => (
-                                                        <div key={item.key} className={`px-2 py-1 border ${item.bg} rounded flex items-center gap-1`}>
-                                                            <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
-                                                            <span>{item.label}</span>
-                                                            <span className="font-semibold text-slate-800">{item.count}</span>
-                                                        </div>
-                                                    ))}
+                                            <div className="flex flex-col gap-2 text-[11px] text-slate-600">
+                                                <div className="flex flex-wrap items-center gap-3">
+                                                    {[ 
+                                                        { key: 'morn', label: t('morn'), count: s.morning, dot: 'bg-amber-400', show: true },
+                                                        { key: 'eve', label: t('eve'), count: s.night, dot: 'bg-indigo-900', show: true },
+                                                        { key: 'night', label: t('night'), count: s.nightShift, dot: 'bg-purple-900', show: enabledShifts.nightShift }
+                                                    ]
+                                                        .filter(item => item.show)
+                                                        .map(item => (
+                                                            <div key={item.key} className="flex items-center gap-1">
+                                                                <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
+                                                                <span>{item.label}</span>
+                                                                <span className="font-semibold text-slate-800">{item.count}</span>
+                                                            </div>
+                                                        ))}
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center gap-3">
+                                                    {[ 
+                                                        { key: 'standby', label: t('standby'), count: s.standbyCount, dot: 'bg-cyan-600', show: enabledShifts.standby },
+                                                        { key: 'rest', label: t('off'), count: s.rest, dot: 'bg-slate-400', show: true }
+                                                    ]
+                                                        .filter(item => item.show)
+                                                        .map(item => (
+                                                            <div key={item.key} className="flex items-center gap-1">
+                                                                <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
+                                                                <span>{item.label}</span>
+                                                                <span className="font-semibold text-slate-800">{item.count}</span>
+                                                            </div>
+                                                        ))}
+                                                </div>
                                             </div>
                                         </div>
                                     );
