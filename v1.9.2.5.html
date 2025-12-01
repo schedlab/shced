@@ -130,17 +130,16 @@
                 text_color: "Text Color",
                 header_weight: "Header Weight",
                 body_weight: "Body Weight",
+                weight_light: "Light",
                 weight_normal: "Normal",
+                weight_medium: "Medium",
+                weight_semibold: "Semi-Bold",
                 weight_bold: "Bold",
+                weight_extra_bold: "Extra Bold",
                 font_size_header: "Header Size",
                 font_size_body: "Body Size",
                 header_image: "Header Image",
                 footer_image: "Footer Image",
-                header_align: "Header Position",
-                footer_align: "Footer Position",
-                align_left: "Left",
-                align_center: "Center",
-                align_right: "Right",
                 upload_image: "Upload",
                 remove_image: "Remove",
                 preview_mode: "Preview how the file will look (Approximate)",
@@ -266,17 +265,16 @@
                 text_color: "لون النص",
                 header_weight: "سمك خط الترويسة",
                 body_weight: "سمك خط المحتوى",
+                weight_light: "رفيع",
                 weight_normal: "عادي",
+                weight_medium: "متوسط",
+                weight_semibold: "نصف عريض",
                 weight_bold: "عريض",
+                weight_extra_bold: "عريض جداً",
                 font_size_header: "حجم خط العنوان",
                 font_size_body: "حجم خط النص",
                 header_image: "صورة الترويسة (Header)",
                 footer_image: "صورة التذييل (Footer)",
-                header_align: "موضع الترويسة",
-                footer_align: "موضع التذييل",
-                align_left: "يسار",
-                align_center: "منتصف",
-                align_right: "يمين",
                 upload_image: "رفع صورة",
                 remove_image: "إزالة",
                 preview_mode: "معاينة تقريبية لشكل الملف",
@@ -380,9 +378,7 @@
                 bodyFontSize: 11,
                 bodyFontWeight: 'normal',
                 headerImage: null,
-                headerImageAlign: 'center',
                 footerImage: null,
-                footerImageAlign: 'center',
                 watermarkImage: null,
                 headerEffect: 'none',
                 footerEffect: 'none',
@@ -460,12 +456,15 @@
                 const sanitized = { ...excelConfig, ...config };
                 delete sanitized.backgroundImage;
                 delete sanitized.useWatermark;
+                delete sanitized.headerImageAlign;
+                delete sanitized.footerImageAlign;
 
-                if (!['left','center','right'].includes(sanitized.headerImageAlign)) sanitized.headerImageAlign = 'center';
-                if (!['left','center','right'].includes(sanitized.footerImageAlign)) sanitized.footerImageAlign = 'center';
                 if (!['washout','washout_grayscale'].includes(sanitized.watermarkEffect)) sanitized.watermarkEffect = 'washout';
-                if (!['bold','normal'].includes(sanitized.headerFontWeight)) sanitized.headerFontWeight = 'bold';
-                if (!['bold','normal'].includes(sanitized.bodyFontWeight)) sanitized.bodyFontWeight = 'normal';
+                const allowedWeights = ['light','normal','medium','semibold','bold','extra_bold'];
+                if (!allowedWeights.includes(sanitized.headerFontWeight)) sanitized.headerFontWeight = 'bold';
+                if (!allowedWeights.includes(sanitized.bodyFontWeight)) sanitized.bodyFontWeight = 'normal';
+                sanitized.headerFontSize = Math.max(8, Math.min(48, Number(sanitized.headerFontSize) || 12));
+                sanitized.bodyFontSize = Math.max(8, Math.min(48, Number(sanitized.bodyFontSize) || 11));
                 return sanitized;
             };
 
@@ -724,6 +723,13 @@
                 return 'FF' + c.toUpperCase();
             };
 
+            const weightValue = (weight) => {
+                const map = { light: 300, normal: 400, medium: 500, semibold: 600, bold: 700, extra_bold: 800 };
+                return map[weight] || 600;
+            };
+
+            const isBoldWeight = (weight) => weightValue(weight) >= 600;
+
             // --- EXPORT FUNCTIONS ---
             const exportCSV = () => {
                 const days = getCalculatedDays();
@@ -822,10 +828,12 @@
                 
                 const headerArgb = hexToArgb(excelConfig.headerColor);
                 const textArgb = hexToArgb(excelConfig.textColor);
+                const headerWeightVal = weightValue(excelConfig.headerFontWeight);
+                const bodyWeightVal = weightValue(excelConfig.bodyFontWeight);
 
-                const headerFont = { color: { argb: headerArgb }, bold: excelConfig.headerFontWeight === 'bold', size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
-                const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: excelConfig.headerFontWeight === 'bold', color: { argb: headerArgb } };
-                const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: excelConfig.bodyFontWeight === 'bold', color: { argb: textArgb } };
+                const headerFont = { color: { argb: headerArgb }, bold: headerWeightVal >= 600, size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
+                const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: headerWeightVal >= 600, color: { argb: headerArgb } };
+                const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: bodyWeightVal >= 600, color: { argb: textArgb } };
                 
                 const bStyle = excelConfig.borderWeight || 'thin';
                 const borderStyle = { top: {style: bStyle}, left: {style: bStyle}, bottom: {style: bStyle}, right: {style: bStyle} };
@@ -854,11 +862,7 @@
                     if (imgWidth > 0 && imgHeight > 0) {
                         const targetHeight = 120;
                         const targetWidth = (imgWidth / imgHeight) * targetHeight;
-                        const tlCol = excelConfig.headerImageAlign === 'center'
-                            ? Math.max(0, (totalCols / 2) - 1)
-                            : excelConfig.headerImageAlign === 'right'
-                                ? Math.max(0, totalCols - 2.2)
-                                : 0.1;
+                        const tlCol = Math.max(0, (totalCols / 2) - 1);
                         sheet.addImage(imageId, {
                             tl: { col: tlCol, row: 0.1 },
                             ext: { width: targetWidth, height: targetHeight },
@@ -947,7 +951,8 @@
                            else cell.font = defaultFont;
                            cell.alignment = centerAlign;
                         } else {
-                            cell.font = defaultFont;
+                            cell.font = { ...defaultFont, color: { argb: headerArgb }, bold: isBoldWeight(excelConfig.headerFontWeight) };
+                            cell.alignment = dateAlign;
                         }
                         cell.border = borderStyle;
                     });
@@ -994,11 +999,7 @@
                     if (footWidth > 0 && footHeight > 0) {
                         const targetFootHeight = 90;
                         const targetFootWidth = (footWidth / footHeight) * targetFootHeight;
-                        const tlCol = excelConfig.footerImageAlign === 'center'
-                            ? Math.max(0, (totalCols / 2) - 1)
-                            : excelConfig.footerImageAlign === 'right'
-                                ? Math.max(0, totalCols - 2.2)
-                                : 0.1;
+                        const tlCol = Math.max(0, (totalCols / 2) - 1);
                         sheet.addImage(imageId, {
                             tl: { col: tlCol, row: fImgRow - 1 + 0.1 },
                             ext: { width: targetFootWidth, height: targetFootHeight },
@@ -1141,8 +1142,8 @@
                             <h2 class="text-xl font-semibold text-indigo-600">${dateTitle}</h2>
                             <div class="w-full flex flex-col md:flex-row justify-between items-center gap-4">
                                 <div>
-                                    <h1 class="text-2xl" style="color:${excelConfig.headerColor};font-weight:${excelConfig.headerFontWeight==='bold'?'700':'600'}">${excelConfig.officeName || t('view_title')}</h1>
-                                    <div class="text-sm" style="color:${excelConfig.textColor};font-weight:${excelConfig.bodyFontWeight==='bold'?'700':'500'}">${t('generated_in')} ${formatShortDate(new Date())}</div>
+                                    <h1 class="text-2xl" style="color:${excelConfig.headerColor};font-weight:${weightValue(excelConfig.headerFontWeight)};font-size:${excelConfig.headerFontSize + 4}px">${excelConfig.officeName || t('view_title')}</h1>
+                                    <div class="text-sm" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${excelConfig.bodyFontSize}px">${t('generated_in')} ${formatShortDate(new Date())}</div>
                                 </div>
                                 <div class="flex items-center bg-slate-50 border border-slate-300 rounded-md px-3 py-2 shadow-sm">
                                     <select onchange="highlightEmp(this)" class="bg-transparent border-none focus:ring-0 text-slate-700 outline-none text-sm font-medium cursor-pointer">${optionsHtml}</select>
@@ -1151,15 +1152,15 @@
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-white" style="color:${excelConfig.headerColor};font-weight:${excelConfig.headerFontWeight==='bold'?'700':'600'}">
+                                <thead class="bg-white" style="color:${excelConfig.headerColor};font-weight:${weightValue(excelConfig.headerFontWeight)};font-size:${excelConfig.headerFontSize}px">
                                     <tr>${headerHtml}</tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white" style="color:${excelConfig.textColor};font-weight:${excelConfig.bodyFontWeight==='bold'?'700':'500'}">
+                                <tbody class="divide-y divide-slate-100 bg-white" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${excelConfig.bodyFontSize}px">
                                     ${tableRows}
                                 </tbody>
                             </table>
                         </div>
-                        <div class="p-4 bg-slate-50 border-t border-slate-200 text-center text-xs" style="color:${excelConfig.textColor};font-weight:${excelConfig.bodyFontWeight==='bold'?'700':'500'}">
+                        <div class="p-4 bg-slate-50 border-t border-slate-200 text-center text-xs" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${Math.max(8, excelConfig.bodyFontSize - 1)}px">
                             ${excelConfig.preparedBy ? t('prepared_by') + ': ' + excelConfig.preparedBy : ''}
                         </div>
                     </div>
@@ -1182,9 +1183,6 @@
                 const footFilter = getCssFilter(excelConfig.footerEffect);
                 const waterFilter = getCssFilter(excelConfig.watermarkEffect);
 
-                const headerJustify = excelConfig.headerImageAlign === 'left' ? 'justify-start' : excelConfig.headerImageAlign === 'right' ? 'justify-end' : 'justify-center';
-                const footerJustify = excelConfig.footerImageAlign === 'left' ? 'justify-start' : excelConfig.footerImageAlign === 'right' ? 'justify-end' : 'justify-center';
-
                 const previewColumns = [
                     { key: 'date', label: t('date_col'), bg: excelConfig.dateColumnColor },
                     { key: 'day', label: t('day'), bg: excelConfig.dateColumnColor },
@@ -1197,8 +1195,8 @@
                 previewColumns.push({ key: 'off', label: t('off_col'), bg: excelConfig.offCellColor });
 
                 const gridStyle = { gridTemplateColumns: `repeat(${previewColumns.length}, minmax(0, 1fr))` };
-                const headerWeight = excelConfig.headerFontWeight === 'bold' ? 'bold' : '600';
-                const bodyWeight = excelConfig.bodyFontWeight === 'bold' ? 'bold' : '500';
+                const headerWeight = weightValue(excelConfig.headerFontWeight);
+                const bodyWeight = weightValue(excelConfig.bodyFontWeight);
 
                 return (
                     <div className="w-full bg-slate-200 p-4 rounded-lg overflow-hidden flex justify-center">
@@ -1208,26 +1206,26 @@
                                      <img src={excelConfig.watermarkImage} className="w-full h-full object-contain opacity-50" style={{ filter: waterFilter }} />
                                 </div>
                             )}
-                            <div className={`h-24 w-full bg-slate-50 border-b border-dashed border-slate-300 flex items-center ${headerJustify} relative overflow-hidden z-10 px-6`}>
+                            <div className={`h-24 w-full bg-slate-50 border-b border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10 px-6`}>
                                 {excelConfig.headerImage ? (
                                     <img src={excelConfig.headerImage} className="h-full object-contain" style={{ filter: headFilter }} />
                                 ) : (
                                     <span className="text-xs text-slate-300 uppercase font-bold tracking-widest">{t('header_image')}</span>
                                 )}
                             </div>
-                            <div className="p-4 text-center text-lg border-b border-slate-100 z-10 relative" style={{color: excelConfig.headerColor, fontWeight: headerWeight }}>
+                            <div className="p-4 text-center border-b border-slate-100 z-10 relative" style={{color: excelConfig.headerColor, fontWeight: headerWeight, fontSize: `${excelConfig.headerFontSize + 4}px` }}>
                                 {excelConfig.officeName || "Office Name"}
                             </div>
                             <div className="flex-1 p-4 z-10 relative">
                                 <div className="border border-slate-300 bg-white/50 backdrop-blur-[1px]">
                                     {/* Preview now shows header background */}
-                                    <div className="grid border-b border-slate-300 text-xs p-2 text-center" style={{ ...gridStyle, backgroundColor: excelConfig.headerRowColor, color: excelConfig.headerColor, fontWeight: headerWeight }}>
+                                    <div className="grid border-b border-slate-300 text-xs p-2 text-center" style={{ ...gridStyle, backgroundColor: excelConfig.headerRowColor, color: excelConfig.headerColor, fontWeight: headerWeight, fontSize: `${excelConfig.headerFontSize}px` }}>
                                         {previewColumns.map(col => (
                                             <div key={col.key} style={{ backgroundColor: 'transparent' }}>{col.label}</div>
                                         ))}
                                     </div>
                                     {[1,2,3].map(i => (
-                                        <div key={i} className="grid border-b border-slate-100 text-xs p-0 text-center" style={{ ...gridStyle, color: excelConfig.textColor, fontWeight: bodyWeight }}>
+                                        <div key={i} className="grid border-b border-slate-100 text-xs p-0 text-center" style={{ ...gridStyle, color: excelConfig.textColor, fontWeight: bodyWeight, fontSize: `${excelConfig.bodyFontSize}px` }}>
                                             {previewColumns.map(col => {
                                                 let text = '';
                                                 if (col.key === 'date') text = '--/--';
@@ -1237,17 +1235,20 @@
                                                 else if (col.key === 'nightShift') text = 'Emp 4';
                                                 else if (col.key === 'standby') text = t('standby');
                                                 else if (col.key === 'off') text = t('off');
-                                                return <div key={col.key} className="p-2" style={{ backgroundColor: col.bg }}>{text}</div>;
+                                                const isDate = col.key === 'date' || col.key === 'day';
+                                                const cellColor = isDate ? excelConfig.headerColor : excelConfig.textColor;
+                                                const cellWeight = isDate ? headerWeight : bodyWeight;
+                                                return <div key={col.key} className="p-2" style={{ backgroundColor: col.bg, color: cellColor, fontWeight: cellWeight }}>{text}</div>;
                                             })}
                                         </div>
                                     ))}
                                     <div className="p-2 text-center text-xs text-slate-400 italic">... {t('rest_of_data')} ...</div>
                                 </div>
                             </div>
-                            <div className="p-4 pt-0 text-sm flex justify-between items-center z-10 relative" style={{ color: excelConfig.textColor, fontWeight: bodyWeight }}>
+                            <div className="p-4 pt-0 text-sm flex justify-between items-center z-10 relative" style={{ color: excelConfig.textColor, fontWeight: bodyWeight, fontSize: `${Math.max(8, excelConfig.bodyFontSize - 1)}px` }}>
                                 <span>{t('prepared_by')}: {excelConfig.preparedBy || "..."}</span>
                             </div>
-                            <div className={`h-20 w-full bg-slate-50 border-t border-dashed border-slate-300 flex items-center ${footerJustify} relative overflow-hidden z-10`}>
+                            <div className={`h-20 w-full bg-slate-50 border-t border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10`}>
                                 {excelConfig.footerImage ? (
                                     <img src={excelConfig.footerImage} className="w-full h-full object-contain" style={{ filter: footFilter }} />
                                 ) : (
@@ -1783,17 +1784,35 @@
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_header')} ({excelConfig.headerFontSize}px)</label>
+                                                    <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.headerFontSize} onChange={e=>setExcelConfig({...excelConfig, headerFontSize: +e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_body')} ({excelConfig.bodyFontSize}px)</label>
+                                                    <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.bodyFontSize} onChange={e=>setExcelConfig({...excelConfig, bodyFontSize: +e.target.value})} />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_weight')}</label>
                                                     <select value={excelConfig.headerFontWeight} onChange={e=>setExcelConfig({...excelConfig, headerFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                        <option value="light">{t('weight_light')}</option>
                                                         <option value="normal">{t('weight_normal')}</option>
+                                                        <option value="medium">{t('weight_medium')}</option>
+                                                        <option value="semibold">{t('weight_semibold')}</option>
                                                         <option value="bold">{t('weight_bold')}</option>
+                                                        <option value="extra_bold">{t('weight_extra_bold')}</option>
                                                     </select>
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('body_weight')}</label>
                                                     <select value={excelConfig.bodyFontWeight} onChange={e=>setExcelConfig({...excelConfig, bodyFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                        <option value="light">{t('weight_light')}</option>
                                                         <option value="normal">{t('weight_normal')}</option>
+                                                        <option value="medium">{t('weight_medium')}</option>
+                                                        <option value="semibold">{t('weight_semibold')}</option>
                                                         <option value="bold">{t('weight_bold')}</option>
+                                                        <option value="extra_bold">{t('weight_extra_bold')}</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -1817,14 +1836,6 @@
                                                                 <option value="grayscale">{t('ef_gray')}</option>
                                                                 <option value="washout">{t('ef_wash')}</option>
                                                                 <option value="washout_grayscale">{t('ef_wash_gray')}</option>
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('header_align')}</label>
-                                                            <select value={excelConfig.headerImageAlign} onChange={e=>setExcelConfig({...excelConfig, headerImageAlign: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                <option value="left">{t('align_left')}</option>
-                                                                <option value="center">{t('align_center')}</option>
-                                                                <option value="right">{t('align_right')}</option>
                                                             </select>
                                                         </div>
                                                     </div>
@@ -1851,14 +1862,6 @@
                                                                 <option value="grayscale">{t('ef_gray')}</option>
                                                                 <option value="washout">{t('ef_wash')}</option>
                                                                 <option value="washout_grayscale">{t('ef_wash_gray')}</option>
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('footer_align')}</label>
-                                                            <select value={excelConfig.footerImageAlign} onChange={e=>setExcelConfig({...excelConfig, footerImageAlign: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                <option value="left">{t('align_left')}</option>
-                                                                <option value="center">{t('align_center')}</option>
-                                                                <option value="right">{t('align_right')}</option>
                                                             </select>
                                                         </div>
                                                     </div>
