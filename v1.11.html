@@ -955,25 +955,29 @@
                 const hasTitle = !!excelConfig.officeName;
                 const hasFooter = !!excelConfig.preparedBy;
                 
+                const baseShiftWidth = 35;
                 let columns = [
                     { header: t('date_col'), key: 'date', width: 18 },
                     { header: t('day'), key: 'day', width: 12 },
-                    { header: t('morn_col'), key: 'morning', width: 35 },
-                    { header: t('eve_col'), key: 'night', width: 35 }
+                    { header: t('morn_col'), key: 'morning', width: baseShiftWidth },
+                    { header: t('eve_col'), key: 'night', width: baseShiftWidth }
                 ];
-                if(enabledShifts.nightShift) columns.push({ header: t('night_col'), key: 'nightShift', width: 35 });
-                if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: 35 });
-                columns.push({ header: t('off_col'), key: 'off', width: 35 });
+                if(enabledShifts.nightShift) columns.push({ header: t('night_col'), key: 'nightShift', width: baseShiftWidth });
+                if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: baseShiftWidth });
+                columns.push({ header: t('off_col'), key: 'off', width: baseShiftWidth });
 
-                const desiredTableWidth = 110;
-                const offWidth = Math.max(
-                    35,
-                    desiredTableWidth - columns.filter(c => c.key !== 'off').reduce((sum, c) => sum + (c.width || 0), 0)
-                );
+                const activeShiftKeys = ['morning', 'night'];
+                let missingShiftSpace = 0;
+                if (enabledShifts.nightShift) activeShiftKeys.push('nightShift'); else missingShiftSpace += baseShiftWidth;
+                if (enabledShifts.standby) activeShiftKeys.push('standby'); else missingShiftSpace += baseShiftWidth;
+                activeShiftKeys.push('off');
+
+                const extraShiftSpace = activeShiftKeys.length ? missingShiftSpace / activeShiftKeys.length : 0;
 
                 const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
                 columns = columns.map(col => {
-                    const width = col.key === 'off' ? offWidth : col.width;
+                    const baseWidth = col.width || baseShiftWidth;
+                    const width = activeShiftKeys.includes(col.key) ? baseWidth + extraShiftSpace : baseWidth;
                     return hideShiftHeader(col.key) ? { ...col, header: '', width } : { ...col, width };
                 });
 
