@@ -344,8 +344,8 @@
         };
 
         const DEFAULT_VIEW_SETTINGS = {
-            headerFontSize: 12,
-            cellFontSize: 10,
+            headerFontSize: 14,
+            cellFontSize: 12,
             lineWeight: '1px',
             lineColor: '#e2e8f0',
             frameBorders: { top: '1px', right: '1px', bottom: '1px', left: '1px' },
@@ -359,7 +359,7 @@
             textColor: "#000000",
             headerFontSize: 14,
               headerFontWeight: 'bold',
-              bodyFontSize: 14,
+              bodyFontSize: 12,
               bodyFontWeight: 'normal',
               headerImage: null,
               footerImage: null,
@@ -1181,10 +1181,8 @@
                              const e = employees.find(x => x.id === id);
                              return e ? createBadge(e.id, e.name, bgClass) : '';
                          }).join('');
-                         const countClass = ids.length !== req[shiftKey] ? 'text-red-400 font-bold' : 'text-green-500/50';
                          return `<td class="p-2 align-top text-center" style="${borderStyle}">
                             <div class="flex flex-wrap gap-1 justify-center">${badges}</div>
-                            <div class="text-center mt-1 ${countClass}" style="font-size: ${Math.max(8, viewSettings.cellFontSize - 2)}px">${ids.length}/${req[shiftKey]}</div>
                          </td>`;
                      };
 
@@ -1924,7 +1922,6 @@
                             {activeTab === 'export_opts' && (
                                 <div className="p-10 flex flex-col items-center justify-start text-slate-500 flex-1 overflow-auto custom-scroll w-full">
                                     <div className="mb-6 text-center">
-                                        <FileSpreadsheet size={48} className="mx-auto mb-2 opacity-60 text-emerald-600"/>
                                         <h3 className="font-bold text-lg text-slate-700">{t('excel_settings_title')}</h3>
                                         <p>{t('excel_settings_desc')}</p>
                                     </div>
@@ -2236,9 +2233,11 @@
                                                 <tbody className="divide-y divide-slate-100">
                                                     {getCalculatedDays().map(day => {
                                                         const dKey = formatDateKey(day);
+                                                        const isFri = day.getDay() === 5;
+                                                        const isSat = day.getDay() === 6;
                                                         return (
-                                                            <tr key={dKey}>
-                                                                <td className="p-2 ps-3 font-medium text-slate-600 border-e border-slate-100 bg-white sticky start-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] rtl:shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">{formatShortDate(day)} <span className="text-[10px] uppercase text-slate-400 ms-1">{getDayName(day)}</span></td>
+                                                            <tr key={dKey} className={`hover:bg-slate-50 ${isFri ? 'bg-gray-100' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`}>
+                                                                <td className="p-2 ps-3 font-medium text-slate-600 border-e border-slate-100 bg-white sticky start-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] rtl:shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">{formatShortDate(day)} <span className={`text-[10px] uppercase ${isFri ? 'text-red-400 font-bold' : 'text-slate-400'} ms-1`}>{getDayName(day)}</span></td>
                                                                 {employees.map(e => {
                                                                     const status = availability[e.id]?.[dKey];
                                                                     let cellClass = "";
