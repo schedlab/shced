@@ -69,7 +69,7 @@
                 highlight: "Highlight Employee...",
                 morn: "Morning",
                 eve: "Evening", 
-                night: "Night (3rd)",
+                night: "Night",
                 standby: "Standby",
                 off: "Off",
                 date_col: "Date",
@@ -117,14 +117,14 @@
                 bulk_time_desc: "Apply these times to all days of the week instantly.",
                 apply_bulk: "Apply to All Days",
                 enable_shifts: "Enable Optional Shifts",
-                enable_night: "Enable Night Shift (3rd)",
+                enable_night: "Enable Night Shift",
                 enable_standby: "Enable Standby Shift",
                 show_times: "Show Shift Times in Headers",
                 to: "to",
                 excel_settings_title: "Excel Customization",
                 excel_settings_desc: "Customize the headers, footers, and images for your Excel export.",
-                office_name: "Office/Dept Name (Top)",
-                prepared_by: "Prepared By (Bottom)",
+                office_name: "Office/Dept Name",
+                prepared_by: "Prepared By",
                 header_color: "Header Row Color",
                 header_text_color: "Header Text",
                 text_color: "Text Color",
@@ -275,7 +275,7 @@
                 excel_settings_title: "تخصيص ملف الإكسل",
                 excel_settings_desc: "تخصيص العناوين، التذييل، والصور لملف التصدير.",
                 office_name: "اسم المكتب/القسم (في الأعلى)",
-                prepared_by: "إعداد (في الأسفل)",
+                prepared_by: "إعداد",
                 header_color: "لون صف العناوين",
                 header_text_color: "نص الترويسة",
                 text_color: "لون النص",
@@ -685,7 +685,7 @@
                 const months = TRANSLATIONS[lang].months || TRANSLATIONS['en'].months;
                 const month = months[date.getMonth()];
                 const day = String(date.getDate()).padStart(2, '0');
-                return `${month}/${day}`;
+                return `${month} ${day}`;
             };
 
             const formatTime12 = (time24) => {
