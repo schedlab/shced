@@ -369,7 +369,7 @@
             paperSize: 9,
             centerHorizontally: true,
             centerVertically: true,
-            pageMargins: { top: 0, right: 0, bottom: 0, left: 0, header: 0, footer: 0 },
+            pageMargins: { top: 0.2, right: 0, bottom: 0.2, left: 0.3, header: 0, footer: 0 },
               headerImage: null,
               footerImage: null,
               watermarkImage: null,
@@ -928,6 +928,15 @@
                  });
             };
 
+            const getScheduleDateTitle = () => {
+                if (scheduleMode === 'month') {
+                    return `${TRANSLATIONS[lang].months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+                }
+                const startLocale = formatShortDate(new Date(rangeStart));
+                const endLocale = formatShortDate(new Date(rangeEnd));
+                return `${startLocale} ${t('to')} ${endLocale}`;
+            };
+
             const exportExcel = async () => {
                 if (!window.ExcelJS) {
                     alert("Excel library not loaded. Please refresh.");
@@ -939,7 +948,9 @@
                     views: [{ rightToLeft: lang === 'ar' }]
                 });
 
-                const pageMargins = excelConfig.pageMargins || DEFAULT_EXCEL_CONFIG.pageMargins;
+                const rtlMargins = { top: 0.2, bottom: 0.2, left: 0, right: 0.3, header: 0, footer: 0 };
+                const ltrMargins = { top: 0.2, bottom: 0.2, left: 0.3, right: 0, header: 0, footer: 0 };
+                const pageMargins = lang === 'ar' ? rtlMargins : ltrMargins;
                 sheet.pageSetup = {
                     orientation: 'portrait',
                     horizontalCentered: true,
@@ -954,31 +965,39 @@
                 const days = getCalculatedDays();
                 const hasTitle = !!excelConfig.officeName;
                 const hasFooter = !!excelConfig.preparedBy;
+                const scheduleDateTitle = getScheduleDateTitle();
+                const hasHeaderImage = !!excelConfig.headerImage;
+                const hasFooterImage = !!excelConfig.footerImage;
                 
+                const baseDateWidth = 18;
+                const baseDayWidth = 12;
+                const baseShiftWidth = 35;
+                const totalShiftColumnsIfAllEnabled = 5; // morning, evening, night, standby, off
                 let columns = [
-                    { header: t('date_col'), key: 'date', width: 18 },
-                    { header: t('day'), key: 'day', width: 12 },
-                    { header: t('morn_col'), key: 'morning', width: 35 },
-                    { header: t('eve_col'), key: 'night', width: 35 }
+                    { header: t('date_col'), key: 'date', width: baseDateWidth },
+                    { header: t('day'), key: 'day', width: baseDayWidth },
+                    { header: t('morn_col'), key: 'morning', width: baseShiftWidth },
+                    { header: t('eve_col'), key: 'night', width: baseShiftWidth }
                 ];
-                if(enabledShifts.nightShift) columns.push({ header: t('night_col'), key: 'nightShift', width: 35 });
-                if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: 35 });
-                columns.push({ header: t('off_col'), key: 'off', width: 35 });
+                if(enabledShifts.nightShift) columns.push({ header: t('night_col'), key: 'nightShift', width: baseShiftWidth });
+                if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: baseShiftWidth });
+                columns.push({ header: t('off_col'), key: 'off', width: baseShiftWidth });
 
-                const desiredTableWidth = 110;
-                const offWidth = Math.max(
-                    35,
-                    desiredTableWidth - columns.filter(c => c.key !== 'off').reduce((sum, c) => sum + (c.width || 0), 0)
-                );
+                const totalDesiredWidth = baseDateWidth + baseDayWidth + (baseShiftWidth * totalShiftColumnsIfAllEnabled);
+                const currentTotalWidth = columns.reduce((sum, col) => sum + (col.width || baseShiftWidth), 0);
+                const extraPerColumn = columns.length
+                    ? Math.max(0, totalDesiredWidth - currentTotalWidth) / columns.length
+                    : 0;
 
                 const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
                 columns = columns.map(col => {
-                    const width = col.key === 'off' ? offWidth : col.width;
-                    return hideShiftHeader(col.key) ? { ...col, header: '', width } : { ...col, width };
+                    const baseWidth = (col.width || baseShiftWidth) + extraPerColumn;
+                    return hideShiftHeader(col.key) ? { ...col, header: '', width: baseWidth } : { ...col, width: baseWidth };
                 });
 
                 const totalCols = columns.length;
                 const lastColChar = String.fromCharCode(64 + totalCols);
+                const plannedRows = (hasHeaderImage ? 1 : 0) + (hasTitle ? 1 : 0) + (scheduleDateTitle ? 1 : 0) + 1 + days.length + (hasFooter ? 1 : 0) + (hasFooterImage ? 1 : 0);
                 
                 const headerArgb = hexToArgb(excelConfig.headerColor);
                 const textArgb = hexToArgb(excelConfig.textColor);
@@ -1000,6 +1019,19 @@
                 const headerFont = { color: { argb: headerArgb }, bold: headerWeightVal >= 600, size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
                 const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: headerWeightVal >= 600, color: { argb: headerArgb } };
                 const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: bodyWeightVal >= 600, color: { argb: textArgb } };
+
+                if (excelConfig.watermarkImage) {
+                    const finalWatermarkImgStr = await processImageEffect(excelConfig.watermarkImage, excelConfig.watermarkEffect, excelConfig.watermarkOpacity);
+                    const imageId = workbook.addImage({
+                        base64: finalWatermarkImgStr,
+                        extension: 'png',
+                    });
+                    sheet.addImage(imageId, {
+                        tl: { col: 0, row: 0 },
+                        br: { col: totalCols, row: Math.max(plannedRows, 1) },
+                        editAs: 'absolute'
+                    });
+                }
 
                 const centerAlign = { vertical: 'middle', horizontal: 'center', wrapText: true };
                 // Alignment for date/day column
@@ -1045,6 +1077,17 @@
                     titleCell.font = { ...headerFont, size: excelConfig.headerFontSize + 4 };
                     titleCell.alignment = centerAlign;
                     sheet.getRow(currentRow).height = 40;
+                    currentRow++;
+                }
+
+                if (scheduleDateTitle) {
+                    sheet.insertRow(currentRow, {});
+                    sheet.mergeCells(`A${currentRow}:${lastColChar}${currentRow}`);
+                    const subtitleCell = sheet.getCell(`A${currentRow}`);
+                    subtitleCell.value = scheduleDateTitle;
+                    subtitleCell.font = { ...defaultFont, bold: true, size: excelConfig.bodyFontSize + 1 };
+                    subtitleCell.alignment = centerAlign;
+                    sheet.getRow(currentRow).height = 24;
                     currentRow++;
                 }
 
@@ -1149,21 +1192,7 @@
                     sheet.getRow(footerRowIdx).height = 30;
                 }
 
-                // --- 7. WATERMARK ---
-                if (excelConfig.watermarkImage) {
-                    const finalWatermarkImgStr = await processImageEffect(excelConfig.watermarkImage, excelConfig.watermarkEffect, excelConfig.watermarkOpacity);
-                    const imageId = workbook.addImage({
-                        base64: finalWatermarkImgStr,
-                        extension: 'png',
-                    });
-                    sheet.addImage(imageId, {
-                        tl: { col: 0, row: 0 },
-                        br: { col: totalCols, row: sheet.rowCount }, 
-                        editAs: 'absolute' 
-                    });
-                }
-
-                // --- 8. FOOTER IMAGE ---
+                // --- 7. FOOTER IMAGE ---
                 if (excelConfig.footerImage) {
                     const finalFooterImgStr = await processImageEffect(excelConfig.footerImage, excelConfig.footerEffect);
                     const { width: footWidth, height: footHeight } = await getImageDimensions(finalFooterImgStr);
@@ -1196,14 +1225,7 @@
                  const days = getCalculatedDays();
                  const isRtl = lang === 'ar';
 
-                 let dateTitle = '';
-                 if (scheduleMode === 'month') {
-                     dateTitle = `${TRANSLATIONS[lang].months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-                 } else {
-                     const startLocale = formatShortDate(new Date(rangeStart));
-                     const endLocale = formatShortDate(new Date(rangeEnd));
-                     dateTitle = `${startLocale} ${t('to')} ${endLocale}`;
-                 }
+                 const dateTitle = getScheduleDateTitle();
                  
                  const createBadge = (empId, name, baseClass) => {
                      return `<span class="emp-badge inline-block px-2 py-1 rounded border m-0.5 transition-all duration-200 ${baseClass}" style="font-size: ${viewSettings.cellFontSize}px" data-id="${empId}">${name}</span>`;
@@ -1320,10 +1342,10 @@
                  <body class="bg-slate-100 min-h-screen p-4 md:p-8 text-slate-900">
                     <div class="max-w-7xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border" style="${frameStyle}">
                         <div class="p-6 border-b bg-white flex flex-col items-center gap-4 sticky top-0 z-20 shadow-sm" style="border-bottom:${lineWeight} solid ${lineColor}; border-color:${lineColor}; border-style:solid;">
-                            <h2 class="text-xl font-semibold text-black">${dateTitle}</h2>
                             <div class="w-full flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div>
+                                <div class="text-center md:text-left">
                                     <h1 class="text-2xl" style="color:${excelConfig.headerColor};font-weight:${weightValue(excelConfig.headerFontWeight)};font-size:${excelConfig.headerFontSize + 4}px">${excelConfig.officeName || t('view_title')}</h1>
+                                    <div class="text-sm" style="color:#475569;font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${Math.max(12, excelConfig.bodyFontSize - 1)}px">${dateTitle}</div>
                                     <div class="text-sm" style="color:#94a3b8;font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${excelConfig.bodyFontSize}px">${t('generated_in')} ${formatShortDate(new Date())}</div>
                                 </div>
                                 <div class="flex items-center bg-slate-50 border border-slate-300 rounded-md px-3 py-2 shadow-sm">
@@ -1365,6 +1387,7 @@
                   const headFilter = getCssFilter(excelConfig.headerEffect);
                   const footFilter = getCssFilter(excelConfig.footerEffect);
                   const waterFilter = getCssFilter(excelConfig.watermarkEffect, excelConfig.watermarkOpacity);
+                  const scheduleDateTitle = getScheduleDateTitle();
 
                 const previewColumns = [
                     { key: 'date', label: t('date_col'), bg: excelConfig.dateColumnColor },
@@ -1416,7 +1439,10 @@
                                 fontSize: `${excelConfig.headerFontSize + 4}px`,
                                 borderBottom: `${linePx} solid ${lineColor}`
                             }}>
-                                {excelConfig.officeName || "Office Name"}
+                                <div>{excelConfig.officeName || "Office Name"}</div>
+                                <div className="text-slate-500 mt-1" style={{ fontWeight: bodyWeight, fontSize: `${Math.max(12, excelConfig.bodyFontSize - 1)}px` }}>
+                                    {scheduleDateTitle}
+                                </div>
                             </div>
                             <div className="flex-1 p-4 z-10 relative">
                                 <div className="bg-white/50 backdrop-blur-[1px]" style={{
