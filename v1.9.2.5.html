@@ -181,7 +181,10 @@
                 border_bottom: "Bottom",
                 border_left: "Left",
                 line_weight: "Grid Line Weight",
-                line_color: "Grid Line Color"
+                line_color: "Grid Line Color",
+                excel_border_settings: "Excel Border Styling",
+                reset_view_styles: "Restore View Defaults",
+                reset_excel_styles: "Restore Excel Defaults"
             },
             ar: {
                 title: "Scheduler V1.9.4",
@@ -324,8 +327,48 @@
                 border_bottom: "أسفل",
                 border_left: "يسار",
                 line_weight: "سماكة خطوط الجدول",
-                line_color: "لون خطوط الجدول"
+                line_color: "لون خطوط الجدول",
+                excel_border_settings: "تنسيق حدود ملف الإكسل",
+                reset_view_styles: "استعادة تنسيقات العرض الافتراضية",
+                reset_excel_styles: "استعادة تنسيقات الإكسل الافتراضية"
             }
+        };
+
+        const DEFAULT_VIEW_SETTINGS = {
+            headerFontSize: 12,
+            cellFontSize: 10,
+            lineWeight: '1px',
+            lineColor: '#e2e8f0',
+            frameBorders: { top: '1px', right: '1px', bottom: '1px', left: '1px' },
+            frameColor: '#e2e8f0'
+        };
+
+        const DEFAULT_EXCEL_CONFIG = {
+            officeName: "",
+            preparedBy: "",
+            headerColor: "#db6fab",
+            textColor: "#000000",
+            headerFontSize: 12,
+            headerFontWeight: 'bold',
+            bodyFontSize: 11,
+            bodyFontWeight: 'normal',
+            headerImage: null,
+            footerImage: null,
+            watermarkImage: null,
+            headerEffect: 'none',
+            footerEffect: 'none',
+            watermarkEffect: 'washout',
+            lineWeight: 'thin',
+            lineColor: '#e2e8f0',
+            frameBorders: { top: 'thin', right: 'thin', bottom: 'thin', left: 'thin' },
+            frameColor: '#e2e8f0',
+            mornCellColor: "#fef3c7",
+            eveCellColor: "#e0e7ff",
+            nightCellColor: "#f3e8ff",
+            standbyCellColor: "#cffafe",
+            offCellColor: "#f8fafc",
+            headerRowColor: "#ffffff",
+            dateColumnColor: "#ffffff",
         };
 
         // --- ICONS ---
@@ -377,41 +420,10 @@
             const [showWarnings, setShowWarnings] = useState(true);
             
             // --- NEW: View Settings State ---
-            const [viewSettings, setViewSettings] = useState({
-                headerFontSize: 12, // For headers & Date column
-                cellFontSize: 10,   // For shift cells
-                lineWeight: '1px', // Grid line weight
-                lineColor: '#e2e8f0',
-                frameBorders: { top: '1px', right: '1px', bottom: '1px', left: '1px' },
-                frameColor: '#e2e8f0'
-            });
+            const [viewSettings, setViewSettings] = useState(() => ({ ...DEFAULT_VIEW_SETTINGS, frameBorders: { ...DEFAULT_VIEW_SETTINGS.frameBorders } }));
 
             // EXCEL CUSTOMIZATION STATE
-            const [excelConfig, setExcelConfig] = useState({
-                officeName: "",
-                preparedBy: "",
-                headerColor: "#db6fab", // Header TEXT Color (kept for compat)
-                textColor: "#000000",
-                headerFontSize: 12,
-                headerFontWeight: 'bold',
-                bodyFontSize: 11,
-                bodyFontWeight: 'normal',
-                headerImage: null,
-                footerImage: null,
-                watermarkImage: null,
-                headerEffect: 'none',
-                footerEffect: 'none',
-                watermarkEffect: 'washout',
-                borderWeight: "thin",
-                mornCellColor: "#fef3c7",
-                eveCellColor: "#e0e7ff",
-                nightCellColor: "#f3e8ff",
-                standbyCellColor: "#cffafe",
-                offCellColor: "#f8fafc",
-                // NEW COLORS
-                headerRowColor: "#ffffff", // Background for headers
-                dateColumnColor: "#ffffff", // Background for date column
-            });
+            const [excelConfig, setExcelConfig] = useState(() => ({ ...DEFAULT_EXCEL_CONFIG, frameBorders: { ...DEFAULT_EXCEL_CONFIG.frameBorders } }));
 
             const createDefaultDay = () => ({
                 morning: 2, night: 1, nightShift: 0, standby: 0,
@@ -454,16 +466,16 @@
 
             const normalizeViewSettings = (settings) => {
                 if (!settings) return null;
-                const normalized = { ...settings };
-                if (!normalized.headerFontSize) normalized.headerFontSize = normalized.fontSize || 12;
-                if (!normalized.cellFontSize) normalized.cellFontSize = normalized.fontSize || 10;
-                if (!normalized.lineWeight) normalized.lineWeight = normalized.borderWidth || '1px';
-                if (!normalized.lineColor) normalized.lineColor = '#e2e8f0';
+                const normalized = { ...DEFAULT_VIEW_SETTINGS, ...settings };
+                if (!normalized.headerFontSize) normalized.headerFontSize = normalized.fontSize || DEFAULT_VIEW_SETTINGS.headerFontSize;
+                if (!normalized.cellFontSize) normalized.cellFontSize = normalized.fontSize || DEFAULT_VIEW_SETTINGS.cellFontSize;
+                if (!normalized.lineWeight) normalized.lineWeight = normalized.borderWidth || DEFAULT_VIEW_SETTINGS.lineWeight;
+                if (!normalized.lineColor) normalized.lineColor = DEFAULT_VIEW_SETTINGS.lineColor;
                 if (!normalized.frameBorders) {
-                    const inherited = normalized.borderWidth || normalized.lineWeight || '1px';
+                    const inherited = normalized.borderWidth || normalized.lineWeight || DEFAULT_VIEW_SETTINGS.lineWeight;
                     normalized.frameBorders = { top: inherited, right: inherited, bottom: inherited, left: inherited };
                 }
-                if (!normalized.frameColor) normalized.frameColor = normalized.lineColor || '#e2e8f0';
+                if (!normalized.frameColor) normalized.frameColor = normalized.lineColor || DEFAULT_VIEW_SETTINGS.frameColor;
                 return normalized;
             };
 
@@ -479,11 +491,12 @@
 
             const sanitizeExcelConfig = (config) => {
                 if (!config) return null;
-                const sanitized = { ...excelConfig, ...config };
+                const sanitized = { ...DEFAULT_EXCEL_CONFIG, ...config };
                 delete sanitized.backgroundImage;
                 delete sanitized.useWatermark;
                 delete sanitized.headerImageAlign;
                 delete sanitized.footerImageAlign;
+                delete sanitized.borderWeight;
 
                 if (!['washout','washout_grayscale'].includes(sanitized.watermarkEffect)) sanitized.watermarkEffect = 'washout';
                 const allowedWeights = ['light','normal','medium','semibold','bold','extra_bold'];
@@ -491,6 +504,20 @@
                 if (!allowedWeights.includes(sanitized.bodyFontWeight)) sanitized.bodyFontWeight = 'normal';
                 sanitized.headerFontSize = Math.max(8, Math.min(48, Number(sanitized.headerFontSize) || 12));
                 sanitized.bodyFontSize = Math.max(8, Math.min(48, Number(sanitized.bodyFontSize) || 11));
+
+                const allowedLineWeights = ['thin','medium','thick'];
+                if (config?.borderWeight && allowedLineWeights.includes(config.borderWeight)) {
+                    sanitized.lineWeight = config.borderWeight;
+                    if (!config.frameBorders) sanitized.frameBorders = { top: config.borderWeight, right: config.borderWeight, bottom: config.borderWeight, left: config.borderWeight };
+                }
+                if (!allowedLineWeights.includes(sanitized.lineWeight)) sanitized.lineWeight = DEFAULT_EXCEL_CONFIG.lineWeight;
+                sanitized.lineColor = sanitized.lineColor || DEFAULT_EXCEL_CONFIG.lineColor;
+
+                sanitized.frameBorders = sanitized.frameBorders ? { ...DEFAULT_EXCEL_CONFIG.frameBorders, ...sanitized.frameBorders } : { ...DEFAULT_EXCEL_CONFIG.frameBorders };
+                Object.keys(sanitized.frameBorders).forEach(side => {
+                    if (!allowedLineWeights.includes(sanitized.frameBorders[side])) sanitized.frameBorders[side] = sanitized.lineWeight;
+                });
+                sanitized.frameColor = sanitized.frameColor || sanitized.lineColor;
                 return sanitized;
             };
 
@@ -516,6 +543,18 @@
                 const sanitizedExcel = sanitizeExcelConfig(data.excelConfig);
                 if (sanitizedExcel) setExcelConfig(sanitizedExcel);
             };
+
+            const resetViewStyles = () => setViewSettings({ ...DEFAULT_VIEW_SETTINGS, frameBorders: { ...DEFAULT_VIEW_SETTINGS.frameBorders } });
+
+            const resetExcelStyles = () => setExcelConfig(prev => ({
+                ...DEFAULT_EXCEL_CONFIG,
+                frameBorders: { ...DEFAULT_EXCEL_CONFIG.frameBorders },
+                officeName: prev.officeName,
+                preparedBy: prev.preparedBy,
+                headerImage: prev.headerImage,
+                footerImage: prev.footerImage,
+                watermarkImage: prev.watermarkImage,
+            }));
 
             // --- Effects ---
             useEffect(() => {
@@ -756,6 +795,12 @@
 
             const isBoldWeight = (weight) => weightValue(weight) >= 600;
 
+            const lineWeightToPx = (weight) => {
+                if (weight === 'medium') return '2px';
+                if (weight === 'thick') return '3px';
+                return '1px';
+            };
+
             // --- EXPORT FUNCTIONS ---
             const exportCSV = () => {
                 const days = getCalculatedDays();
@@ -857,12 +902,22 @@
                 const headerWeightVal = weightValue(excelConfig.headerFontWeight);
                 const bodyWeightVal = weightValue(excelConfig.bodyFontWeight);
 
+                const lineStyle = excelConfig.lineWeight || 'thin';
+                const lineColorArgb = hexToArgb(excelConfig.lineColor || '#e2e8f0');
+                const frameColorArgb = hexToArgb(excelConfig.frameColor || excelConfig.lineColor || '#e2e8f0');
+                const frameBorders = excelConfig.frameBorders || DEFAULT_EXCEL_CONFIG.frameBorders;
+
+                const buildBorder = ({ isFirstRow, isLastRow, isFirstCol, isLastCol }) => ({
+                    top: { style: isFirstRow ? frameBorders.top : lineStyle, color: { argb: isFirstRow ? frameColorArgb : lineColorArgb } },
+                    left: { style: isFirstCol ? frameBorders.left : lineStyle, color: { argb: isFirstCol ? frameColorArgb : lineColorArgb } },
+                    bottom: { style: isLastRow ? frameBorders.bottom : lineStyle, color: { argb: isLastRow ? frameColorArgb : lineColorArgb } },
+                    right: { style: isLastCol ? frameBorders.right : lineStyle, color: { argb: isLastCol ? frameColorArgb : lineColorArgb } },
+                });
+
                 const headerFont = { color: { argb: headerArgb }, bold: headerWeightVal >= 600, size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
                 const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: headerWeightVal >= 600, color: { argb: headerArgb } };
                 const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: bodyWeightVal >= 600, color: { argb: textArgb } };
-                
-                const bStyle = excelConfig.borderWeight || 'thin';
-                const borderStyle = { top: {style: bStyle}, left: {style: bStyle}, bottom: {style: bStyle}, right: {style: bStyle} };
+
                 const centerAlign = { vertical: 'middle', horizontal: 'center', wrapText: true };
                 // Alignment for date/day column
                 const dateAlign = { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -924,16 +979,21 @@
                 });
 
                 headerRow.height = showShiftTimes ? 60 : 35;
-                headerRow.eachCell((cell) => {
-                    cell.font = headerFont; 
+                headerRow.eachCell((cell, colNumber) => {
+                    cell.font = headerFont;
                     cell.alignment = centerAlign;
-                    cell.border = borderStyle;
+                    cell.border = buildBorder({
+                        isFirstRow: true,
+                        isLastRow: days.length === 0,
+                        isFirstCol: colNumber === 1,
+                        isLastCol: colNumber === totalCols
+                    });
                     // Apply header row color background
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: hexToArgb(excelConfig.headerRowColor) } };
                 });
 
                 // --- 5. DATA ROWS ---
-                days.forEach(day => {
+                days.forEach((day, dayIdx) => {
                     const dKey = formatDateKey(day);
                     const niceDate = formatShortDate(day);
                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
@@ -980,7 +1040,12 @@
                             cell.font = { ...defaultFont, color: { argb: headerArgb }, bold: isBoldWeight(excelConfig.headerFontWeight) };
                             cell.alignment = dateAlign;
                         }
-                        cell.border = borderStyle;
+                        cell.border = buildBorder({
+                            isFirstRow: false,
+                            isLastRow: dayIdx === days.length - 1,
+                            isFirstCol: colNumber === 1,
+                            isLastCol: colNumber === totalCols
+                        });
                     });
                 });
 
@@ -1227,35 +1292,76 @@
                 const gridStyle = { gridTemplateColumns: `repeat(${previewColumns.length}, minmax(0, 1fr))` };
                 const headerWeight = weightValue(excelConfig.headerFontWeight);
                 const bodyWeight = weightValue(excelConfig.bodyFontWeight);
+                const linePx = lineWeightToPx(excelConfig.lineWeight || 'thin');
+                const framePx = {
+                    top: lineWeightToPx(excelConfig.frameBorders?.top || excelConfig.lineWeight || 'thin'),
+                    right: lineWeightToPx(excelConfig.frameBorders?.right || excelConfig.lineWeight || 'thin'),
+                    bottom: lineWeightToPx(excelConfig.frameBorders?.bottom || excelConfig.lineWeight || 'thin'),
+                    left: lineWeightToPx(excelConfig.frameBorders?.left || excelConfig.lineWeight || 'thin'),
+                };
+                const lineColor = excelConfig.lineColor || '#e2e8f0';
+                const frameColor = excelConfig.frameColor || lineColor;
 
                 return (
                     <div className="w-full bg-slate-200 p-4 rounded-lg overflow-hidden flex justify-center">
-                        <div className="bg-white w-[500px] min-h-[600px] shadow-2xl flex flex-col scale-90 md:scale-100 origin-top excel-preview-shadow text-slate-800 relative">
+                        <div className="bg-white w-[500px] min-h-[600px] shadow-2xl flex flex-col scale-90 md:scale-100 origin-top excel-preview-shadow text-slate-800 relative" style={{
+                            borderTop: `${framePx.top} solid ${frameColor}`,
+                            borderRight: `${framePx.right} solid ${frameColor}`,
+                            borderBottom: `${framePx.bottom} solid ${frameColor}`,
+                            borderLeft: `${framePx.left} solid ${frameColor}`
+                        }}>
                             {excelConfig.watermarkImage && (
                                 <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center p-10 overflow-hidden">
                                      <img src={excelConfig.watermarkImage} className="w-full h-full object-contain opacity-50" style={{ filter: waterFilter }} />
                                 </div>
                             )}
-                            <div className={`h-24 w-full bg-slate-50 border-b border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10 px-6`}>
+                            <div className={`h-24 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10 px-6`} style={{ borderBottom: `${linePx} dashed ${lineColor}` }}>
                                 {excelConfig.headerImage ? (
                                     <img src={excelConfig.headerImage} className="h-full object-contain" style={{ filter: headFilter }} />
                                 ) : (
                                     <span className="text-xs text-slate-300 uppercase font-bold tracking-widest">{t('header_image')}</span>
                                 )}
                             </div>
-                            <div className="p-4 text-center border-b border-slate-100 z-10 relative" style={{color: excelConfig.headerColor, fontWeight: headerWeight, fontSize: `${excelConfig.headerFontSize + 4}px` }}>
+                            <div className="p-4 text-center z-10 relative" style={{
+                                color: excelConfig.headerColor,
+                                fontWeight: headerWeight,
+                                fontSize: `${excelConfig.headerFontSize + 4}px`,
+                                borderBottom: `${linePx} solid ${lineColor}`
+                            }}>
                                 {excelConfig.officeName || "Office Name"}
                             </div>
                             <div className="flex-1 p-4 z-10 relative">
-                                <div className="border border-slate-300 bg-white/50 backdrop-blur-[1px]">
+                                <div className="bg-white/50 backdrop-blur-[1px]" style={{
+                                    borderTop: `${linePx} solid ${lineColor}`,
+                                    borderRight: `${linePx} solid ${lineColor}`,
+                                    borderBottom: `${linePx} solid ${lineColor}`,
+                                    borderLeft: `${linePx} solid ${lineColor}`
+                                }}>
                                     {/* Preview now shows header background */}
-                                    <div className="grid border-b border-slate-300 text-xs p-2 text-center" style={{ ...gridStyle, backgroundColor: excelConfig.headerRowColor, color: excelConfig.headerColor, fontWeight: headerWeight, fontSize: `${excelConfig.headerFontSize}px` }}>
+                                    <div className="grid text-xs p-2 text-center" style={{
+                                        ...gridStyle,
+                                        backgroundColor: excelConfig.headerRowColor,
+                                        color: excelConfig.headerColor,
+                                        fontWeight: headerWeight,
+                                        fontSize: `${excelConfig.headerFontSize}px`,
+                                        borderBottom: `${linePx} solid ${lineColor}`,
+                                        borderLeft: `${linePx} solid ${lineColor}`,
+                                        borderRight: `${linePx} solid ${lineColor}`
+                                    }}>
                                         {previewColumns.map(col => (
                                             <div key={col.key} style={{ backgroundColor: 'transparent' }}>{col.label}</div>
                                         ))}
                                     </div>
                                     {[1,2,3].map(i => (
-                                        <div key={i} className="grid border-b border-slate-100 text-xs p-0 text-center" style={{ ...gridStyle, color: excelConfig.textColor, fontWeight: bodyWeight, fontSize: `${excelConfig.bodyFontSize}px` }}>
+                                        <div key={i} className="grid text-xs p-0 text-center" style={{
+                                            ...gridStyle,
+                                            color: excelConfig.textColor,
+                                            fontWeight: bodyWeight,
+                                            fontSize: `${excelConfig.bodyFontSize}px`,
+                                            borderBottom: `${linePx} solid ${lineColor}`,
+                                            borderLeft: `${linePx} solid ${lineColor}`,
+                                            borderRight: `${linePx} solid ${lineColor}`
+                                        }}>
                                             {previewColumns.map(col => {
                                                 let text = '';
                                                 if (col.key === 'date') text = '--/--';
@@ -1272,13 +1378,22 @@
                                             })}
                                         </div>
                                     ))}
-                                    <div className="p-2 text-center text-xs text-slate-400 italic">... {t('rest_of_data')} ...</div>
+                                    <div className="p-2 text-center text-xs text-slate-400 italic" style={{
+                                        borderTop: `${linePx} solid ${lineColor}`,
+                                        borderLeft: `${linePx} solid ${lineColor}`,
+                                        borderRight: `${linePx} solid ${lineColor}`
+                                    }}>... {t('rest_of_data')} ...</div>
                                 </div>
                             </div>
-                            <div className="p-4 pt-0 text-sm flex justify-between items-center z-10 relative" style={{ color: excelConfig.textColor, fontWeight: bodyWeight, fontSize: `${Math.max(8, excelConfig.bodyFontSize - 1)}px` }}>
+                            <div className="p-4 pt-0 text-sm flex justify-between items-center z-10 relative" style={{
+                                color: excelConfig.textColor,
+                                fontWeight: bodyWeight,
+                                fontSize: `${Math.max(8, excelConfig.bodyFontSize - 1)}px`,
+                                borderTop: `${linePx} solid ${lineColor}`
+                            }}>
                                 <span>{t('prepared_by')}: {excelConfig.preparedBy || "..."}</span>
                             </div>
-                            <div className={`h-20 w-full bg-slate-50 border-t border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10`}>
+                            <div className={`h-20 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10`} style={{ borderTop: `${linePx} dashed ${lineColor}` }}>
                                 {excelConfig.footerImage ? (
                                     <img src={excelConfig.footerImage} className="w-full h-full object-contain" style={{ filter: footFilter }} />
                                 ) : (
@@ -1790,7 +1905,11 @@
 
                                     <div className="w-full flex flex-col lg:flex-row gap-8 items-start">
                                         <div className="w-full lg:w-1/2 bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-6">
-                                            
+
+                                            <div className="flex justify-end">
+                                                <button onClick={resetExcelStyles} className="text-xs text-blue-600 hover:text-blue-800 underline">{t('reset_excel_styles')}</button>
+                                            </div>
+
                                             <div className="grid grid-cols-1 gap-4">
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('office_name')}</label>
@@ -1849,6 +1968,64 @@
                                                         <option value="bold">{t('weight_bold')}</option>
                                                         <option value="extra_bold">{t('weight_extra_bold')}</option>
                                                     </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase">{t('excel_border_settings')}</label>
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_top')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.top || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, top: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_right')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.right || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, right: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_bottom')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.bottom || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, bottom: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_left')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.left || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, left: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_weight')}</label>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.lineWeight} onChange={e=>setExcelConfig({...excelConfig, lineWeight: e.target.value})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_color')}</label>
+                                                        <input type="color" className="w-full h-10 border border-slate-300 rounded" value={excelConfig.lineColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, lineColor: e.target.value})}/>
+                                                    </div>
+                                                    <div className="md:col-span-2 flex items-center gap-3">
+                                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1">{t('frame_color')}</label>
+                                                        <input type="color" className="w-16 h-9 border border-slate-300 rounded" value={excelConfig.frameColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, frameColor: e.target.value})}/>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <hr className="border-slate-100"/>
@@ -2079,7 +2256,10 @@
                                         <div className="w-full max-w-3xl flex flex-col gap-6 pb-12">
                                             {/* NEW: VIEW SETTINGS */}
                                             <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-                                                <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Sliders size={18} className="text-blue-500"/> {t('view_settings')}</h3>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Sliders size={18} className="text-blue-500"/> {t('view_settings')}</h3>
+                                                    <button onClick={resetViewStyles} className="text-xs text-blue-600 hover:text-blue-800 underline mt-1">{t('reset_view_styles')}</button>
+                                                </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_size_header')} ({viewSettings.headerFontSize}px)</label>
