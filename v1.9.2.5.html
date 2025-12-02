@@ -159,6 +159,7 @@
                 use_watermark: "Use as Watermark (Background)",
                 watermark_image: "Background Image (Watermark)",
                 watermark_hint: "Check this to place the image BEHIND the data.",
+                include_day_names: "Include day names in shift time cell",
                 watermark_opacity: "Background Transparency",
                 rest_of_data: "Rest of data...",
                 mode_month: "Month Mode",
@@ -307,9 +308,10 @@
                 ef_gray: "أبيض وأسود",
                 ef_wash: "باهت (Washout)",
                 ef_wash_gray: "باهت + أبيض وأسود",
-                use_watermark: "استخدام كعلامة مائية (خلفية)", 
+                use_watermark: "استخدام كعلامة مائية (خلفية)",
                 watermark_image: "صورة الخلفية (علامة مائية)",
                  watermark_hint: "اجعل الصورة تظهر خلف البيانات (شفافة).",
+                include_day_names: "عرض أسماء الأيام مع أوقات الورديات",
                  watermark_opacity: "شفافية الخلفية",
                 rest_of_data: "باقي البيانات...",
                 mode_month: "نظام الأشهر",
@@ -375,6 +377,7 @@
               footerEffect: 'none',
               watermarkEffect: 'washout',
               watermarkOpacity: 0.2,
+              includeShiftDayNames: true,
             lineWeight: 'thin',
             lineColor: '#e2e8f0',
             frameBorders: { top: 'thin', right: 'thin', bottom: 'thin', left: 'thin' },
@@ -539,6 +542,8 @@
                 sanitized.paperSize = normalizePaperSize(sanitized.paperSize);
                 const defaultMargins = DEFAULT_EXCEL_CONFIG.pageMargins;
                 sanitized.pageMargins = { ...defaultMargins };
+
+                sanitized.includeShiftDayNames = sanitized.includeShiftDayNames !== false;
 
                 const allowedLineWeights = ['thin','medium','thick'];
                 if (config?.borderWeight && allowedLineWeights.includes(config.borderWeight)) {
@@ -733,9 +738,11 @@
                 setLang(prev => prev === 'en' ? 'ar' : 'en');
             };
 
-            const getShiftTimeSummary = (shiftKey) => {
+            const getShiftTimeSummary = (shiftKey, options = {}) => {
                 if (!showShiftTimes) return [];
-                if (shiftKey === 'standby') return []; 
+                if (shiftKey === 'standby') return [];
+
+                const includeDayNames = options.includeDayNames !== false;
 
                 const groups = {};
                 for(let i=0; i<7; i++) {
@@ -778,7 +785,10 @@
                     }
                     results.push({ label: ranges.join(', '), time });
                 });
-                return results.map(r => `${r.label} ${r.time}`);
+                return results.map(r => {
+                    if (!includeDayNames || !r.label.trim()) return r.time;
+                    return `${r.label} ${r.time}`.trim();
+                });
             };
 
             // --- IMAGE HANDLER ---
@@ -1035,9 +1045,9 @@
                     const isShiftHeader = ['morning','night','nightShift'].includes(col.key);
                     let val = isShiftHeader ? '' : col.header;
                     if (showShiftTimes) {
-                        const summary = col.key === 'morning' ? getShiftTimeSummary('morning')
-                            : col.key === 'night' ? getShiftTimeSummary('night')
-                            : col.key === 'nightShift' ? getShiftTimeSummary('nightShift')
+                        const summary = col.key === 'morning' ? getShiftTimeSummary('morning', { includeDayNames: excelConfig.includeShiftDayNames !== false })
+                            : col.key === 'night' ? getShiftTimeSummary('night', { includeDayNames: excelConfig.includeShiftDayNames !== false })
+                            : col.key === 'nightShift' ? getShiftTimeSummary('nightShift', { includeDayNames: excelConfig.includeShiftDayNames !== false })
                             : [];
                         if (summary.length) {
                             val = val ? `${val}\n${summary.join('\n')}` : summary.join('\n');
@@ -2042,6 +2052,16 @@
                                                           <option value="black">{t('weight_black')}</option>
                                                       </select>
                                                 </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 bg-slate-50 p-3 rounded border border-slate-200">
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-4 h-4 text-blue-600 rounded"
+                                                    checked={excelConfig.includeShiftDayNames !== false}
+                                                    onChange={e=>setExcelConfig({...excelConfig, includeShiftDayNames: e.target.checked})}
+                                                />
+                                                <span className="text-sm font-medium text-slate-700">{t('include_day_names')}</span>
                                             </div>
 
                                             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
