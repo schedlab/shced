@@ -361,9 +361,10 @@
               headerFontWeight: 'bold',
               bodyFontSize: 12,
               bodyFontWeight: 'normal',
-            pageOrientation: 'landscape',
+            pageOrientation: 'portrait',
             fitToWidth: 1,
-            fitToHeight: 0,
+            fitToHeight: 1,
+            paperSize: 9,
             pageMargins: { top: 0.4, right: 0.25, bottom: 0.4, left: 0.25, header: 0.1, footer: 0.1 },
               headerImage: null,
               footerImage: null,
@@ -523,10 +524,16 @@
                 if (!allowedOrientations.includes(sanitized.pageOrientation)) sanitized.pageOrientation = DEFAULT_EXCEL_CONFIG.pageOrientation;
                 const parseFitValue = (val, fallback) => {
                     const num = Number(val);
-                    return Number.isFinite(num) && num >= 0 ? num : fallback;
+                    return Number.isFinite(num) && num >= 1 ? num : fallback;
                 };
                 sanitized.fitToWidth = parseFitValue(sanitized.fitToWidth, DEFAULT_EXCEL_CONFIG.fitToWidth);
                 sanitized.fitToHeight = parseFitValue(sanitized.fitToHeight, DEFAULT_EXCEL_CONFIG.fitToHeight);
+                const normalizePaperSize = (val) => {
+                    if (typeof val === 'string' && val.toLowerCase() === 'a4') return 9;
+                    const num = Number(val);
+                    return Number.isFinite(num) && num > 0 ? num : DEFAULT_EXCEL_CONFIG.paperSize;
+                };
+                sanitized.paperSize = normalizePaperSize(sanitized.paperSize);
                 const defaultMargins = DEFAULT_EXCEL_CONFIG.pageMargins;
                 sanitized.pageMargins = { ...defaultMargins, ...(sanitized.pageMargins || {}) };
                 Object.keys(sanitized.pageMargins).forEach(key => {
@@ -928,7 +935,8 @@
                     fitToPage: true,
                     fitToWidth: Number(excelConfig.fitToWidth ?? DEFAULT_EXCEL_CONFIG.fitToWidth),
                     fitToHeight: Number(excelConfig.fitToHeight ?? DEFAULT_EXCEL_CONFIG.fitToHeight),
-                    margins: pageMargins
+                    margins: pageMargins,
+                    paperSize: Number(excelConfig.paperSize ?? DEFAULT_EXCEL_CONFIG.paperSize)
                 };
 
                 const days = getCalculatedDays();
@@ -939,11 +947,14 @@
                     { header: t('date_col'), key: 'date', width: 18 },
                     { header: t('day'), key: 'day', width: 12 },
                     { header: t('morn_col'), key: 'morning', width: 35 },
-                    { header: t('eve_col'), key: 'night', width: 35 } 
+                    { header: t('eve_col'), key: 'night', width: 35 }
                 ];
                 if(enabledShifts.nightShift) columns.push({ header: t('night_col'), key: 'nightShift', width: 35 });
                 if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: 35 });
                 columns.push({ header: t('off_col'), key: 'off', width: 35 });
+
+                const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
+                columns = columns.map(col => hideShiftHeader(col.key) ? { ...col, header: '' } : col);
 
                 const totalCols = columns.length;
                 const lastColChar = String.fromCharCode(64 + totalCols);
@@ -1018,13 +1029,18 @@
 
                 // --- 4. HEADERS (The actual table headers) ---
                 const headerRow = sheet.getRow(currentRow);
-                
+
                 columns.forEach((col, idx) => {
-                    let val = col.header;
+                    const isShiftHeader = ['morning','night','nightShift'].includes(col.key);
+                    let val = isShiftHeader ? '' : col.header;
                     if (showShiftTimes) {
-                         if (col.key === 'morning') val += `\n${getShiftTimeSummary('morning').join('\n')}`;
-                         if (col.key === 'night') val += `\n${getShiftTimeSummary('night').join('\n')}`;
-                         if (col.key === 'nightShift') val += `\n${getShiftTimeSummary('nightShift').join('\n')}`;
+                        const summary = col.key === 'morning' ? getShiftTimeSummary('morning')
+                            : col.key === 'night' ? getShiftTimeSummary('night')
+                            : col.key === 'nightShift' ? getShiftTimeSummary('nightShift')
+                            : [];
+                        if (summary.length) {
+                            val = val ? `${val}\n${summary.join('\n')}` : summary.join('\n');
+                        }
                     }
                     headerRow.getCell(idx + 1).value = val;
                 });
