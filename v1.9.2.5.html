@@ -126,7 +126,19 @@
                 office_name: "Office/Dept Name (Top)",
                 prepared_by: "Prepared By (Bottom)",
                 header_color: "Header Row Color",
+                header_text_color: "Header Text",
                 text_color: "Text Color",
+                header_weight: "Header Weight",
+                body_weight: "Body Weight",
+                weight_thin: "Thin",
+                weight_extra_light: "Extra Light",
+                weight_light: "Light",
+                weight_normal: "Normal",
+                weight_medium: "Medium",
+                weight_semibold: "Semi-Bold",
+                weight_bold: "Bold",
+                weight_extra_bold: "Extra Bold",
+                weight_black: "Black",
                 font_size_header: "Header Size",
                 font_size_body: "Body Size",
                 header_image: "Header Image",
@@ -144,9 +156,10 @@
                 ef_gray: "Grayscale",
                 ef_wash: "Washout",
                 ef_wash_gray: "Washout + Gray",
-                use_watermark: "Use as Watermark (Background)", 
+                use_watermark: "Use as Watermark (Background)",
                 watermark_image: "Background Image (Watermark)",
                 watermark_hint: "Check this to place the image BEHIND the data.",
+                watermark_opacity: "Background Transparency",
                 rest_of_data: "Rest of data...",
                 mode_month: "Month Mode",
                 mode_range: "Range Mode",
@@ -164,7 +177,19 @@
                 view_settings: "View Settings",
                 text_size_header: "Headers & Date Text Size",
                 text_size_cell: "Schedule Names Text Size",
-                border_thickness: "Border Thickness"
+                border_thickness: "Border Thickness",
+                frame_border: "Schedule Border Edges",
+                frame_color: "Border Color",
+                border_top: "Top",
+                border_right: "Right",
+                border_bottom: "Bottom",
+                border_left: "Left",
+                line_weight: "Grid Line Weight",
+                line_color: "Grid Line Color",
+                excel_border_settings: "Excel Border Styling",
+                watermark_opacity: "Background Transparency",
+                reset_view_styles: "Restore View Defaults",
+                reset_excel_styles: "Restore Excel Defaults"
             },
             ar: {
                 title: "Scheduler V1.9.4",
@@ -252,7 +277,19 @@
                 office_name: "اسم المكتب/القسم (في الأعلى)",
                 prepared_by: "إعداد (في الأسفل)",
                 header_color: "لون صف العناوين",
+                header_text_color: "نص الترويسة",
                 text_color: "لون النص",
+                 header_weight: "سمك خط الترويسة",
+                 body_weight: "سمك خط المحتوى",
+                 weight_thin: "رفيع جداً",
+                 weight_extra_light: "رفيع",
+                 weight_light: "خفيف",
+                 weight_normal: "عادي",
+                 weight_medium: "متوسط",
+                 weight_semibold: "نصف عريض",
+                 weight_bold: "عريض",
+                 weight_extra_bold: "عريض جداً",
+                 weight_black: "ثقيل",
                 font_size_header: "حجم خط العنوان",
                 font_size_body: "حجم خط النص",
                 header_image: "صورة الترويسة (Header)",
@@ -272,7 +309,8 @@
                 ef_wash_gray: "باهت + أبيض وأسود",
                 use_watermark: "استخدام كعلامة مائية (خلفية)", 
                 watermark_image: "صورة الخلفية (علامة مائية)",
-                watermark_hint: "اجعل الصورة تظهر خلف البيانات (شفافة).",
+                 watermark_hint: "اجعل الصورة تظهر خلف البيانات (شفافة).",
+                 watermark_opacity: "شفافية الخلفية",
                 rest_of_data: "باقي البيانات...",
                 mode_month: "نظام الأشهر",
                 mode_range: "نظام الفترة (تاريخ)",
@@ -290,8 +328,64 @@
                 view_settings: "إعدادات العرض",
                 text_size_header: "حجم خط العناوين والتاريخ",
                 text_size_cell: "حجم خط أسماء الموظفين",
-                border_thickness: "سمك الإطار"
+                border_thickness: "سمك الإطار",
+                frame_border: "حواف صندوق الجدول",
+                frame_color: "لون الحدود",
+                border_top: "أعلى",
+                border_right: "يمين",
+                border_bottom: "أسفل",
+                border_left: "يسار",
+                line_weight: "سماكة خطوط الجدول",
+                line_color: "لون خطوط الجدول",
+                excel_border_settings: "تنسيق حدود ملف الإكسل",
+                reset_view_styles: "استعادة تنسيقات العرض الافتراضية",
+                reset_excel_styles: "استعادة تنسيقات الإكسل الافتراضية"
             }
+        };
+
+        const DEFAULT_VIEW_SETTINGS = {
+            headerFontSize: 14,
+            cellFontSize: 12,
+            lineWeight: '1px',
+            lineColor: '#e2e8f0',
+            frameBorders: { top: '1px', right: '1px', bottom: '1px', left: '1px' },
+            frameColor: '#e2e8f0'
+        };
+
+        const DEFAULT_EXCEL_CONFIG = {
+            officeName: "",
+            preparedBy: "",
+            headerColor: "#db6fab",
+            textColor: "#000000",
+            headerFontSize: 14,
+              headerFontWeight: 'bold',
+              bodyFontSize: 12,
+              bodyFontWeight: 'normal',
+            pageOrientation: 'portrait',
+            fitToWidth: 1,
+            fitToHeight: 1,
+            paperSize: 9,
+            centerHorizontally: true,
+            centerVertically: true,
+            pageMargins: { top: 0.75, right: 0.7, bottom: 0.75, left: 0.7, header: 0.3, footer: 0.3 },
+              headerImage: null,
+              footerImage: null,
+              watermarkImage: null,
+              headerEffect: 'none',
+              footerEffect: 'none',
+              watermarkEffect: 'washout',
+              watermarkOpacity: 0.2,
+            lineWeight: 'thin',
+            lineColor: '#e2e8f0',
+            frameBorders: { top: 'thin', right: 'thin', bottom: 'thin', left: 'thin' },
+            frameColor: '#e2e8f0',
+            mornCellColor: "#fef3c7",
+            eveCellColor: "#e0e7ff",
+            nightCellColor: "#f3e8ff",
+            standbyCellColor: "#cffafe",
+            offCellColor: "#f8fafc",
+            headerRowColor: "#ffffff",
+            dateColumnColor: "#ffffff",
         };
 
         // --- ICONS ---
@@ -343,40 +437,14 @@
             const [showWarnings, setShowWarnings] = useState(true);
             
             // --- NEW: View Settings State ---
-            const [viewSettings, setViewSettings] = useState({
-                headerFontSize: 12, // For headers & Date column
-                cellFontSize: 10,   // For shift cells
-                borderWidth: '1px', // Default border
-            });
+            const [viewSettings, setViewSettings] = useState(() => ({ ...DEFAULT_VIEW_SETTINGS, frameBorders: { ...DEFAULT_VIEW_SETTINGS.frameBorders } }));
 
             // EXCEL CUSTOMIZATION STATE
-            const [excelConfig, setExcelConfig] = useState({
-                officeName: "",
-                preparedBy: "",
-                headerColor: "#db6fab", // Header TEXT Color (kept for compat)
-                textColor: "#000000",
-                headerFontSize: 12,
-                bodyFontSize: 11,
-                headerImage: null,
-                footerImage: null,
-                watermarkImage: null, 
-                headerEffect: 'none', 
-                footerEffect: 'none',
-                watermarkEffect: 'none',
-                borderWeight: "thin",
-                mornCellColor: "#fef3c7", 
-                eveCellColor: "#e0e7ff",  
-                nightCellColor: "#f3e8ff", 
-                standbyCellColor: "#cffafe", 
-                offCellColor: "#f8fafc",
-                // NEW COLORS
-                headerRowColor: "#ffffff", // Background for headers
-                dateColumnColor: "#ffffff", // Background for date column
-            });
+            const [excelConfig, setExcelConfig] = useState(() => ({ ...DEFAULT_EXCEL_CONFIG, frameBorders: { ...DEFAULT_EXCEL_CONFIG.frameBorders } }));
 
             const createDefaultDay = () => ({
-                morning: 2, night: 1, nightShift: 0, standby: 0,
-                morningStart: "08:00", morningEnd: "15:00", 
+                morning: 1, night: 1, nightShift: 1, standby: 1,
+                morningStart: "08:00", morningEnd: "15:00",
                 nightStart: "15:00", nightEnd: "21:00",
                 nightShiftStart: "21:00", nightShiftEnd: "08:00",
                 standbyStart: "00:00", standbyEnd: "23:59" 
@@ -413,45 +481,122 @@
             const footerImgRef = useRef(null);
             const watermarkImgRef = useRef(null);
 
+            const normalizeViewSettings = (settings) => {
+                if (!settings) return null;
+                const normalized = { ...DEFAULT_VIEW_SETTINGS, ...settings };
+                if (!normalized.headerFontSize) normalized.headerFontSize = normalized.fontSize || DEFAULT_VIEW_SETTINGS.headerFontSize;
+                if (!normalized.cellFontSize) normalized.cellFontSize = normalized.fontSize || DEFAULT_VIEW_SETTINGS.cellFontSize;
+                if (!normalized.lineWeight) normalized.lineWeight = normalized.borderWidth || DEFAULT_VIEW_SETTINGS.lineWeight;
+                if (!normalized.lineColor) normalized.lineColor = DEFAULT_VIEW_SETTINGS.lineColor;
+                if (!normalized.frameBorders) {
+                    const inherited = normalized.borderWidth || normalized.lineWeight || DEFAULT_VIEW_SETTINGS.lineWeight;
+                    normalized.frameBorders = { top: inherited, right: inherited, bottom: inherited, left: inherited };
+                }
+                if (!normalized.frameColor) normalized.frameColor = normalized.lineColor || DEFAULT_VIEW_SETTINGS.frameColor;
+                return normalized;
+            };
+
+            const mergeRequirements = (incomingRequirements) => {
+                const mergedReqs = { ...defaultRequirements };
+                if (incomingRequirements) {
+                    Object.keys(incomingRequirements).forEach(key => {
+                        mergedReqs[key] = { ...mergedReqs[key], ...incomingRequirements[key] };
+                    });
+                }
+                return mergedReqs;
+            };
+
+            const sanitizeExcelConfig = (config) => {
+                if (!config) return null;
+                const sanitized = { ...DEFAULT_EXCEL_CONFIG, ...config };
+                delete sanitized.backgroundImage;
+                delete sanitized.useWatermark;
+                delete sanitized.headerImageAlign;
+                delete sanitized.footerImageAlign;
+                delete sanitized.borderWeight;
+
+                if (!['washout','washout_grayscale'].includes(sanitized.watermarkEffect)) sanitized.watermarkEffect = 'washout';
+                  const allowedWeights = ['thin','extra_light','light','normal','medium','semibold','bold','extra_bold','black'];
+                  if (!allowedWeights.includes(sanitized.headerFontWeight)) sanitized.headerFontWeight = 'normal';
+                  if (!allowedWeights.includes(sanitized.bodyFontWeight)) sanitized.bodyFontWeight = 'normal';
+                  sanitized.headerFontSize = Math.max(8, Math.min(48, Number(sanitized.headerFontSize) || 14));
+                  sanitized.bodyFontSize = Math.max(8, Math.min(48, Number(sanitized.bodyFontSize) || 14));
+                  sanitized.watermarkOpacity = Math.max(0.05, Math.min(1, Number(sanitized.watermarkOpacity ?? DEFAULT_EXCEL_CONFIG.watermarkOpacity) || DEFAULT_EXCEL_CONFIG.watermarkOpacity));
+                sanitized.pageOrientation = 'portrait';
+                sanitized.centerHorizontally = true;
+                sanitized.centerVertically = true;
+                const parseFitValue = (val, fallback) => {
+                    const num = Number(val);
+                    return Number.isFinite(num) && num >= 1 ? num : fallback;
+                };
+                sanitized.fitToWidth = parseFitValue(sanitized.fitToWidth, DEFAULT_EXCEL_CONFIG.fitToWidth);
+                sanitized.fitToHeight = parseFitValue(sanitized.fitToHeight, DEFAULT_EXCEL_CONFIG.fitToHeight);
+                const normalizePaperSize = (val) => {
+                    if (typeof val === 'string' && val.toLowerCase() === 'a4') return 9;
+                    const num = Number(val);
+                    return Number.isFinite(num) && num > 0 ? num : DEFAULT_EXCEL_CONFIG.paperSize;
+                };
+                sanitized.paperSize = normalizePaperSize(sanitized.paperSize);
+                const defaultMargins = DEFAULT_EXCEL_CONFIG.pageMargins;
+                sanitized.pageMargins = { ...defaultMargins };
+
+                const allowedLineWeights = ['thin','medium','thick'];
+                if (config?.borderWeight && allowedLineWeights.includes(config.borderWeight)) {
+                    sanitized.lineWeight = config.borderWeight;
+                    if (!config.frameBorders) sanitized.frameBorders = { top: config.borderWeight, right: config.borderWeight, bottom: config.borderWeight, left: config.borderWeight };
+                }
+                if (!allowedLineWeights.includes(sanitized.lineWeight)) sanitized.lineWeight = DEFAULT_EXCEL_CONFIG.lineWeight;
+                sanitized.lineColor = sanitized.lineColor || DEFAULT_EXCEL_CONFIG.lineColor;
+
+                sanitized.frameBorders = sanitized.frameBorders ? { ...DEFAULT_EXCEL_CONFIG.frameBorders, ...sanitized.frameBorders } : { ...DEFAULT_EXCEL_CONFIG.frameBorders };
+                Object.keys(sanitized.frameBorders).forEach(side => {
+                    if (!allowedLineWeights.includes(sanitized.frameBorders[side])) sanitized.frameBorders[side] = sanitized.lineWeight;
+                });
+                sanitized.frameColor = sanitized.frameColor || sanitized.lineColor;
+                return sanitized;
+            };
+
+            const applyLoadedData = (data) => {
+                if (!data) return;
+                setEmployees(data.employees || employees);
+                setSchedule(data.schedule || {});
+                setEnabledShifts(data.enabledShifts || { nightShift: false, standby: false });
+                if (data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
+                if (data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
+                if (data.scheduleMode) setScheduleMode(data.scheduleMode);
+                if (data.rangeStart) setRangeStart(data.rangeStart);
+                if (data.rangeEnd) setRangeEnd(data.rangeEnd);
+
+                const normalizedView = normalizeViewSettings(data.viewSettings);
+                if (normalizedView) setViewSettings(normalizedView);
+
+                setRequirements(mergeRequirements(data.requirements));
+                setAvailability(data.availability || {});
+                setPreferences(data.preferences || {});
+                if (data.lang) setLang(data.lang);
+
+                const sanitizedExcel = sanitizeExcelConfig(data.excelConfig);
+                if (sanitizedExcel) setExcelConfig(sanitizedExcel);
+            };
+
+            const resetViewStyles = () => setViewSettings({ ...DEFAULT_VIEW_SETTINGS, frameBorders: { ...DEFAULT_VIEW_SETTINGS.frameBorders } });
+
+            const resetExcelStyles = () => setExcelConfig(prev => ({
+                ...DEFAULT_EXCEL_CONFIG,
+                frameBorders: { ...DEFAULT_EXCEL_CONFIG.frameBorders },
+                officeName: prev.officeName,
+                preparedBy: prev.preparedBy,
+                headerImage: prev.headerImage,
+                footerImage: prev.footerImage,
+                watermarkImage: prev.watermarkImage,
+            }));
+
             // --- Effects ---
             useEffect(() => {
                 try {
                     const saved = localStorage.getItem('scheduler_data_v1_9_3');
                     if (saved) {
-                        const data = JSON.parse(saved);
-                        setEmployees(data.employees || employees);
-                        setSchedule(data.schedule || {});
-                        setEnabledShifts(data.enabledShifts || { nightShift: false, standby: false });
-                        if (data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
-                        if (data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
-                        if (data.scheduleMode) setScheduleMode(data.scheduleMode);
-                        if (data.rangeStart) setRangeStart(data.rangeStart);
-                        if (data.rangeEnd) setRangeEnd(data.rangeEnd);
-                        if (data.viewSettings) {
-                             // Migration for font split
-                             const vs = data.viewSettings;
-                             if(!vs.headerFontSize) vs.headerFontSize = vs.fontSize || 12;
-                             if(!vs.cellFontSize) vs.cellFontSize = vs.fontSize || 10;
-                             setViewSettings(vs);
-                        }
-
-                        const mergedReqs = { ...defaultRequirements };
-                        if (data.requirements) {
-                            Object.keys(data.requirements).forEach(key => {
-                                mergedReqs[key] = { ...mergedReqs[key], ...data.requirements[key] };
-                            });
-                        }
-                        setRequirements(mergedReqs);
-                        
-                        setAvailability(data.availability || {});
-                        setPreferences(data.preferences || {});
-                        if(data.lang) setLang(data.lang);
-                        if(data.excelConfig) {
-                            const conf = {...excelConfig, ...data.excelConfig};
-                            if(conf.backgroundImage) delete conf.backgroundImage; 
-                            if(conf.useWatermark) delete conf.useWatermark; 
-                            setExcelConfig(conf);
-                        }
+                        applyLoadedData(JSON.parse(saved));
                     }
                 } catch (e) { console.error("Load failed", e); }
             }, []);
@@ -536,8 +681,8 @@
             };
 
             const formatShortDate = (date) => {
-                const monthAbbrs = TRANSLATIONS[lang].month_abbrs || TRANSLATIONS['en'].month_abbrs;
-                const month = monthAbbrs[date.getMonth()];
+                const months = TRANSLATIONS[lang].months || TRANSLATIONS['en'].months;
+                const month = months[date.getMonth()];
                 const day = String(date.getDate()).padStart(2, '0');
                 return `${month}/${day}`;
             };
@@ -573,30 +718,7 @@
                 reader.onload = (ev) => {
                     try {
                         const data = JSON.parse(ev.target.result);
-                        if(data.employees) setEmployees(data.employees);
-                        if(data.schedule) setSchedule(data.schedule);
-                        if(data.requirements) setRequirements(data.requirements);
-                        if(data.availability) setAvailability(data.availability);
-                        if(data.preferences) setPreferences(data.preferences);
-                        if(data.lang) setLang(data.lang);
-                        if(data.enabledShifts) setEnabledShifts(data.enabledShifts);
-                        if(data.showShiftTimes !== undefined) setShowShiftTimes(data.showShiftTimes);
-                        if(data.showWarnings !== undefined) setShowWarnings(data.showWarnings);
-                        if(data.scheduleMode) setScheduleMode(data.scheduleMode);
-                        if(data.rangeStart) setRangeStart(data.rangeStart);
-                        if(data.rangeEnd) setRangeEnd(data.rangeEnd);
-                        if(data.viewSettings) {
-                             const vs = data.viewSettings;
-                             if(!vs.headerFontSize) vs.headerFontSize = vs.fontSize || 12;
-                             if(!vs.cellFontSize) vs.cellFontSize = vs.fontSize || 10;
-                             setViewSettings(vs);
-                        }
-
-                        if(data.excelConfig) {
-                             const conf = data.excelConfig;
-                             if(conf.backgroundImage) delete conf.backgroundImage;
-                             setExcelConfig(conf);
-                        }
+                        applyLoadedData(data);
                         alert("Data loaded successfully!");
                     } catch (err) {
                         console.error(err);
@@ -701,6 +823,29 @@
                 return 'FF' + c.toUpperCase();
             };
 
+              const weightValue = (weight) => {
+                  const map = {
+                      thin: 100,
+                      extra_light: 200,
+                      light: 300,
+                      normal: 400,
+                      medium: 500,
+                      semibold: 600,
+                      bold: 700,
+                      extra_bold: 800,
+                      black: 900
+                  };
+                  return map[weight] || 400;
+              };
+
+            const isBoldWeight = (weight) => weightValue(weight) >= 600;
+
+            const lineWeightToPx = (weight) => {
+                if (weight === 'medium') return '2px';
+                if (weight === 'thick') return '3px';
+                return '1px';
+            };
+
             // --- EXPORT FUNCTIONS ---
             const exportCSV = () => {
                 const days = getCalculatedDays();
@@ -724,17 +869,17 @@
                 let csv = `\uFEFF${header}`; 
                 days.forEach(day => {
                     const dKey = formatDateKey(day);
-                    const niceDate = day.toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB'); 
+                    const niceDate = formatShortDate(day);
                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
                     
-                    const m = s.morning.map(id => employees.find(e => e.id === id)?.name).join(' & ');
-                    const n = s.night.map(id => employees.find(e => e.id === id)?.name).join(' & ');
-                    const ns = (s.nightShift || []).map(id => employees.find(e => e.id === id)?.name).join(' & ');
-                    const sb = (s.standby || []).map(id => employees.find(e => e.id === id)?.name).join(' & ');
+                    const m = s.morning.map(id => employees.find(e => e.id === id)?.name).join(' / ');
+                    const n = s.night.map(id => employees.find(e => e.id === id)?.name).join(' / ');
+                    const ns = (s.nightShift || []).map(id => employees.find(e => e.id === id)?.name).join(' / ');
+                    const sb = (s.standby || []).map(id => employees.find(e => e.id === id)?.name).join(' / ');
                     
                     let workers = [...s.morning, ...s.night];
                     if(enabledShifts.nightShift) workers = [...workers, ...(s.nightShift || [])];
-                    const off = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' & ');
+                    const off = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' / ');
 
                     let row = `${niceDate},${getDayName(day)},"${m}","${n}"`;
                     if(enabledShifts.nightShift) row += `,"${ns}"`;
@@ -748,23 +893,26 @@
                 link.click();
             };
 
-            const processImageEffect = async (base64Str, effect) => {
-                 if (!base64Str || effect === 'none') return base64Str;
-                 return new Promise((resolve) => {
-                     const img = document.createElement('img');
-                     img.onload = () => {
-                         const canvas = document.createElement('canvas');
-                         canvas.width = img.width;
-                         canvas.height = img.height;
-                         const ctx = canvas.getContext('2d');
-                         let filter = '';
-                         if(effect === 'grayscale') filter = 'grayscale(100%)';
-                         else if(effect === 'washout') filter = 'opacity(0.3) brightness(1.2) contrast(0.8)';
-                         else if(effect === 'washout_grayscale') filter = 'grayscale(100%) opacity(0.3) brightness(1.2) contrast(0.8)';
-                         ctx.filter = filter;
-                         ctx.drawImage(img, 0, 0);
-                         resolve(canvas.toDataURL('image/png'));
-                     };
+             const processImageEffect = async (base64Str, effect, opacityOverride) => {
+                   if (!base64Str || effect === 'none') return base64Str;
+                   return new Promise((resolve) => {
+                       const img = document.createElement('img');
+                       img.onload = () => {
+                           const canvas = document.createElement('canvas');
+                           canvas.width = img.width;
+                           canvas.height = img.height;
+                           const ctx = canvas.getContext('2d');
+                           const baseOpacity = (effect === 'washout' || effect === 'washout_grayscale') ? 0.35 : 1;
+                           const opacity = Math.max(0, Math.min(1, opacityOverride ?? baseOpacity));
+                           let filter = '';
+                           if(effect === 'grayscale') filter = 'grayscale(100%)';
+                           else if(effect === 'washout') filter = `opacity(${opacity}) brightness(1.2) contrast(0.8)`;
+                           else if(effect === 'washout_grayscale') filter = `grayscale(100%) opacity(${opacity}) brightness(1.2) contrast(0.8)`;
+                           else filter = `opacity(${opacity})`;
+                           ctx.filter = filter;
+                           ctx.drawImage(img, 0, 0);
+                           resolve(canvas.toDataURL('image/png'));
+                       };
                      img.src = base64Str;
                  });
             };
@@ -780,6 +928,18 @@
                     views: [{ rightToLeft: lang === 'ar' }]
                 });
 
+                const pageMargins = excelConfig.pageMargins || DEFAULT_EXCEL_CONFIG.pageMargins;
+                sheet.pageSetup = {
+                    orientation: 'portrait',
+                    horizontalCentered: true,
+                    verticalCentered: true,
+                    fitToPage: true,
+                    fitToWidth: Number(excelConfig.fitToWidth ?? DEFAULT_EXCEL_CONFIG.fitToWidth),
+                    fitToHeight: Number(excelConfig.fitToHeight ?? DEFAULT_EXCEL_CONFIG.fitToHeight),
+                    margins: pageMargins,
+                    paperSize: Number(excelConfig.paperSize ?? DEFAULT_EXCEL_CONFIG.paperSize)
+                };
+
                 const days = getCalculatedDays();
                 const hasTitle = !!excelConfig.officeName;
                 const hasFooter = !!excelConfig.preparedBy;
@@ -788,24 +948,39 @@
                     { header: t('date_col'), key: 'date', width: 18 },
                     { header: t('day'), key: 'day', width: 12 },
                     { header: t('morn_col'), key: 'morning', width: 35 },
-                    { header: t('eve_col'), key: 'night', width: 35 } 
+                    { header: t('eve_col'), key: 'night', width: 35 }
                 ];
                 if(enabledShifts.nightShift) columns.push({ header: t('night_col'), key: 'nightShift', width: 35 });
                 if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: 35 });
                 columns.push({ header: t('off_col'), key: 'off', width: 35 });
+
+                const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
+                columns = columns.map(col => hideShiftHeader(col.key) ? { ...col, header: '' } : col);
 
                 const totalCols = columns.length;
                 const lastColChar = String.fromCharCode(64 + totalCols);
                 
                 const headerArgb = hexToArgb(excelConfig.headerColor);
                 const textArgb = hexToArgb(excelConfig.textColor);
-                
-                const headerFont = { color: { argb: headerArgb }, bold: true, size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
-                const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: true, color: { argb: headerArgb } };
-                const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, color: { argb: textArgb } };
-                
-                const bStyle = excelConfig.borderWeight || 'thin';
-                const borderStyle = { top: {style: bStyle}, left: {style: bStyle}, bottom: {style: bStyle}, right: {style: bStyle} };
+                const headerWeightVal = weightValue(excelConfig.headerFontWeight);
+                const bodyWeightVal = weightValue(excelConfig.bodyFontWeight);
+
+                const lineStyle = excelConfig.lineWeight || 'thin';
+                const lineColorArgb = hexToArgb(excelConfig.lineColor || '#e2e8f0');
+                const frameColorArgb = hexToArgb(excelConfig.frameColor || excelConfig.lineColor || '#e2e8f0');
+                const frameBorders = excelConfig.frameBorders || DEFAULT_EXCEL_CONFIG.frameBorders;
+
+                const buildBorder = ({ isFirstRow, isLastRow, isFirstCol, isLastCol }) => ({
+                    top: { style: isFirstRow ? frameBorders.top : lineStyle, color: { argb: isFirstRow ? frameColorArgb : lineColorArgb } },
+                    left: { style: isFirstCol ? frameBorders.left : lineStyle, color: { argb: isFirstCol ? frameColorArgb : lineColorArgb } },
+                    bottom: { style: isLastRow ? frameBorders.bottom : lineStyle, color: { argb: isLastRow ? frameColorArgb : lineColorArgb } },
+                    right: { style: isLastCol ? frameBorders.right : lineStyle, color: { argb: isLastCol ? frameColorArgb : lineColorArgb } },
+                });
+
+                const headerFont = { color: { argb: headerArgb }, bold: headerWeightVal >= 600, size: excelConfig.headerFontSize, name: lang === 'ar' ? 'Cairo' : 'Calibri' };
+                const pinkBoldFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: headerWeightVal >= 600, color: { argb: headerArgb } };
+                const defaultFont = { name: lang === 'ar' ? 'Cairo' : 'Calibri', size: excelConfig.bodyFontSize, bold: bodyWeightVal >= 600, color: { argb: textArgb } };
+
                 const centerAlign = { vertical: 'middle', horizontal: 'center', wrapText: true };
                 // Alignment for date/day column
                 const dateAlign = { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -831,8 +1006,9 @@
                     if (imgWidth > 0 && imgHeight > 0) {
                         const targetHeight = 120;
                         const targetWidth = (imgWidth / imgHeight) * targetHeight;
+                        const tlCol = Math.max(0, (totalCols / 2) - 1);
                         sheet.addImage(imageId, {
-                            tl: { col: 0.1, row: 0.1 },
+                            tl: { col: tlCol, row: 0.1 },
                             ext: { width: targetWidth, height: targetHeight },
                             editAs: 'absolute'
                         });
@@ -854,36 +1030,46 @@
 
                 // --- 4. HEADERS (The actual table headers) ---
                 const headerRow = sheet.getRow(currentRow);
-                
+
                 columns.forEach((col, idx) => {
-                    let val = col.header;
+                    const isShiftHeader = ['morning','night','nightShift'].includes(col.key);
+                    let val = isShiftHeader ? '' : col.header;
                     if (showShiftTimes) {
-                         if (col.key === 'morning') val += `\n${getShiftTimeSummary('morning').join('\n')}`;
-                         if (col.key === 'night') val += `\n${getShiftTimeSummary('night').join('\n')}`;
-                         if (col.key === 'nightShift') val += `\n${getShiftTimeSummary('nightShift').join('\n')}`;
+                        const summary = col.key === 'morning' ? getShiftTimeSummary('morning')
+                            : col.key === 'night' ? getShiftTimeSummary('night')
+                            : col.key === 'nightShift' ? getShiftTimeSummary('nightShift')
+                            : [];
+                        if (summary.length) {
+                            val = val ? `${val}\n${summary.join('\n')}` : summary.join('\n');
+                        }
                     }
                     headerRow.getCell(idx + 1).value = val;
                 });
 
                 headerRow.height = showShiftTimes ? 60 : 35;
-                headerRow.eachCell((cell) => {
-                    cell.font = headerFont; 
+                headerRow.eachCell((cell, colNumber) => {
+                    cell.font = headerFont;
                     cell.alignment = centerAlign;
-                    cell.border = borderStyle;
+                    cell.border = buildBorder({
+                        isFirstRow: true,
+                        isLastRow: days.length === 0,
+                        isFirstCol: colNumber === 1,
+                        isLastCol: colNumber === totalCols
+                    });
                     // Apply header row color background
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: hexToArgb(excelConfig.headerRowColor) } };
                 });
 
                 // --- 5. DATA ROWS ---
-                days.forEach(day => {
+                days.forEach((day, dayIdx) => {
                     const dKey = formatDateKey(day);
-                    const niceDate = day.toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB');
+                    const niceDate = formatShortDate(day);
                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
 
                     const getNames = (arr) => (arr || []).map(id => employees.find(e => e.id === id)?.name).join(' / ');
                     let workers = [...s.morning, ...s.night];
                     if(enabledShifts.nightShift) workers = [...workers, ...(s.nightShift || [])];
-                    const offNames = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' & ');
+                    const offNames = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' / ');
                     
                     const rowData = {};
                     rowData['date'] = niceDate;
@@ -919,9 +1105,15 @@
                            else cell.font = defaultFont;
                            cell.alignment = centerAlign;
                         } else {
-                            cell.font = defaultFont;
+                            cell.font = { ...defaultFont, color: { argb: headerArgb }, bold: isBoldWeight(excelConfig.headerFontWeight) };
+                            cell.alignment = dateAlign;
                         }
-                        cell.border = borderStyle;
+                        cell.border = buildBorder({
+                            isFirstRow: false,
+                            isLastRow: dayIdx === days.length - 1,
+                            isFirstCol: colNumber === 1,
+                            isLastCol: colNumber === totalCols
+                        });
                     });
                 });
 
@@ -939,7 +1131,7 @@
 
                 // --- 7. WATERMARK ---
                 if (excelConfig.watermarkImage) {
-                    const finalWatermarkImgStr = await processImageEffect(excelConfig.watermarkImage, excelConfig.watermarkEffect);
+                    const finalWatermarkImgStr = await processImageEffect(excelConfig.watermarkImage, excelConfig.watermarkEffect, excelConfig.watermarkOpacity);
                     const imageId = workbook.addImage({
                         base64: finalWatermarkImgStr,
                         extension: 'png',
@@ -966,10 +1158,11 @@
                     if (footWidth > 0 && footHeight > 0) {
                         const targetFootHeight = 90;
                         const targetFootWidth = (footWidth / footHeight) * targetFootHeight;
+                        const tlCol = Math.max(0, (totalCols / 2) - 1);
                         sheet.addImage(imageId, {
-                            tl: { col: 0.1, row: fImgRow - 1 + 0.1 },
+                            tl: { col: tlCol, row: fImgRow - 1 + 0.1 },
                             ext: { width: targetFootWidth, height: targetFootHeight },
-                            editAs: 'absolute' 
+                            editAs: 'absolute'
                         });
                     }
                 }
@@ -987,8 +1180,8 @@
                  if (scheduleMode === 'month') {
                      dateTitle = `${TRANSLATIONS[lang].months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
                  } else {
-                     const startLocale = new Date(rangeStart).toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB');
-                     const endLocale = new Date(rangeEnd).toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB');
+                     const startLocale = formatShortDate(new Date(rangeStart));
+                     const endLocale = formatShortDate(new Date(rangeEnd));
                      dateTitle = `${startLocale} ${t('to')} ${endLocale}`;
                  }
                  
@@ -1002,14 +1195,18 @@
                  let sbHead = t('standby_col');
 
                  if (showShiftTimes) {
-                     const fmtTimes = (arr) => arr.map(x => `<div class="font-normal opacity-75" style="font-size: ${Math.max(8, viewSettings.headerFontSize - 2)}px">${x}</div>`).join('');
+                     const fmtTimes = (arr) => arr.map(x => `<div class="font-normal opacity-75 text-center" style="font-size: ${Math.max(8, viewSettings.headerFontSize - 2)}px">${x}</div>`).join('');
                      mHead += `<div class="mt-1">${fmtTimes(getShiftTimeSummary('morning'))}</div>`;
                      nHead += `<div class="mt-1">${fmtTimes(getShiftTimeSummary('night'))}</div>`;
                      nsHead += `<div class="mt-1">${fmtTimes(getShiftTimeSummary('nightShift'))}</div>`;
                  }
 
-                 // Common border style for all cells
-                 const borderStyle = `border-bottom: ${viewSettings.borderWidth} solid #e2e8f0; border-${isRtl ? 'left' : 'right'}: ${viewSettings.borderWidth} solid #e2e8f0;`;
+                const lineWeight = viewSettings.lineWeight || '1px';
+                const lineColor = viewSettings.lineColor || '#e2e8f0';
+                const frameBorders = viewSettings.frameBorders || { top: lineWeight, right: lineWeight, bottom: lineWeight, left: lineWeight };
+                const frameColor = viewSettings.frameColor || lineColor;
+                const borderStyle = `border-bottom: ${lineWeight} solid ${lineColor}; border-${isRtl ? 'left' : 'right'}: ${lineWeight} solid ${lineColor}; border-color: ${lineColor}; border-style: solid;`;
+                const frameStyle = `border-top:${frameBorders.top} solid ${frameColor}; border-right:${frameBorders.right} solid ${frameColor}; border-bottom:${frameBorders.bottom} solid ${frameColor}; border-left:${frameBorders.left} solid ${frameColor}; border-color:${frameColor}; border-style:solid;`;
 
                  const tableRows = days.map(day => {
                      const dKey = formatDateKey(day);
@@ -1019,7 +1216,7 @@
                      const isSat = day.getDay() === 6;
                      
                      let trClass = "hover:bg-slate-50 transition-colors";
-                     if (isFri) trClass += " bg-slate-50/60";
+                     if (isFri) trClass += " bg-gray-100";
                      if (isSat) trClass += " bg-indigo-50/10";
 
                      const renderCell = (shiftKey, bgClass) => {
@@ -1028,10 +1225,8 @@
                              const e = employees.find(x => x.id === id);
                              return e ? createBadge(e.id, e.name, bgClass) : '';
                          }).join('');
-                         const countClass = ids.length !== req[shiftKey] ? 'text-red-400 font-bold' : 'text-green-500/50';
-                         return `<td class="p-2 align-top" style="${borderStyle}">
-                            <div class="flex flex-wrap gap-1">${badges}</div>
-                            <div class="text-end mt-1 ${countClass}" style="font-size: ${Math.max(8, viewSettings.cellFontSize - 2)}px">${ids.length}/${req[shiftKey]}</div>
+                         return `<td class="p-2 align-top text-center" style="${borderStyle}">
+                            <div class="flex flex-wrap gap-1 justify-center">${badges}</div>
                          </td>`;
                      };
 
@@ -1056,21 +1251,21 @@
                      const offDuty = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id));
                      const offBadges = offDuty.map(e => createBadge(e.id, e.name, "bg-slate-100 text-slate-500 border-slate-200")).join('');
 
-                     rowHtml += `<td class="p-2 align-top bg-slate-50/30" style="${borderStyle}"><div class="flex flex-wrap gap-1">${offBadges}</div></td></tr>`;
+                     rowHtml += `<td class="p-2 align-top bg-slate-50/30" style="${borderStyle}"><div class="flex flex-wrap gap-1 justify-center">${offBadges}</div></td></tr>`;
                      return rowHtml;
                  }).join('');
 
                  let headerHtml = `<th class="p-3 bg-slate-50 text-center text-slate-500 text-xs font-bold uppercase" style="width: 120px; ${borderStyle}">${t('date_col')}</th>
-                 <th class="p-3 bg-amber-50/30 text-start text-amber-700 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${mHead}</th>
-                 <th class="p-3 bg-indigo-50/30 text-start text-indigo-900 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${nHead}</th>`;
+                 <th class="p-3 bg-amber-50/30 text-center text-amber-700 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${mHead}</th>
+                 <th class="p-3 bg-indigo-50/30 text-center text-indigo-900 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${nHead}</th>`;
                  
                  if (enabledShifts.nightShift) {
-                     headerHtml += `<th class="p-3 bg-purple-50/30 text-start text-purple-900 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${nsHead}</th>`;
+                     headerHtml += `<th class="p-3 bg-purple-50/30 text-center text-purple-900 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${nsHead}</th>`;
                  }
                  if (enabledShifts.standby) {
-                     headerHtml += `<th class="p-3 bg-cyan-50/30 text-start text-cyan-900 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${sbHead}</th>`;
+                     headerHtml += `<th class="p-3 bg-cyan-50/30 text-center text-cyan-900 font-bold min-w-[120px]" style="font-size: ${viewSettings.headerFontSize + 2}px; ${borderStyle}">${sbHead}</th>`;
                  }
-                 headerHtml += `<th class="p-3 bg-slate-50 text-start text-slate-500 text-sm font-bold min-w-[120px]" style="${borderStyle}">${t('off_col')}</th>`;
+                 headerHtml += `<th class="p-3 bg-slate-50 text-center text-slate-500 text-sm font-bold min-w-[120px]" style="${borderStyle}">${t('off_col')}</th>`;
 
                  const optionsHtml = `<option value="">${t('highlight')}</option>` + employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
 
@@ -1103,13 +1298,13 @@
                     <` + `/script>
                  </head>
                  <body class="bg-slate-100 min-h-screen p-4 md:p-8 text-slate-900">
-                    <div class="max-w-7xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200">
-                        <div class="p-6 border-b border-slate-200 bg-white flex flex-col items-center gap-4 sticky top-0 z-20 shadow-sm">
-                            <h2 class="text-xl font-semibold text-indigo-600">${dateTitle}</h2>
+                    <div class="max-w-7xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border" style="${frameStyle}">
+                        <div class="p-6 border-b bg-white flex flex-col items-center gap-4 sticky top-0 z-20 shadow-sm" style="border-bottom:${lineWeight} solid ${lineColor}; border-color:${lineColor}; border-style:solid;">
+                            <h2 class="text-xl font-semibold text-black">${dateTitle}</h2>
                             <div class="w-full flex flex-col md:flex-row justify-between items-center gap-4">
                                 <div>
-                                    <h1 class="text-2xl font-bold text-slate-800">${excelConfig.officeName || t('view_title')}</h1>
-                                    <div class="text-sm text-slate-500">${t('generated_in')} ${new Date().toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-GB')}</div>
+                                    <h1 class="text-2xl" style="color:${excelConfig.headerColor};font-weight:${weightValue(excelConfig.headerFontWeight)};font-size:${excelConfig.headerFontSize + 4}px">${excelConfig.officeName || t('view_title')}</h1>
+                                    <div class="text-sm" style="color:#94a3b8;font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${excelConfig.bodyFontSize}px">${t('generated_in')} ${formatShortDate(new Date())}</div>
                                 </div>
                                 <div class="flex items-center bg-slate-50 border border-slate-300 rounded-md px-3 py-2 shadow-sm">
                                     <select onchange="highlightEmp(this)" class="bg-transparent border-none focus:ring-0 text-slate-700 outline-none text-sm font-medium cursor-pointer">${optionsHtml}</select>
@@ -1117,16 +1312,16 @@
                             </div>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-white text-slate-500">
+                            <table class="w-full text-center border-collapse">
+                                <thead class="bg-white" style="color:${excelConfig.headerColor};font-weight:${weightValue(excelConfig.headerFontWeight)};font-size:${excelConfig.headerFontSize}px">
                                     <tr>${headerHtml}</tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white">
+                                <tbody class="bg-white" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${excelConfig.bodyFontSize}px;border-color:${lineColor}; border-style:solid;">
                                     ${tableRows}
                                 </tbody>
                             </table>
                         </div>
-                        <div class="p-4 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">
+                        <div class="p-4 bg-slate-50 border-t text-center text-xs" style="color:${excelConfig.textColor};font-weight:${weightValue(excelConfig.bodyFontWeight)};font-size:${Math.max(8, excelConfig.bodyFontSize - 1)}px;border-top:${lineWeight} solid ${lineColor}; border-color:${lineColor}; border-style:solid;">
                             ${excelConfig.preparedBy ? t('prepared_by') + ': ' + excelConfig.preparedBy : ''}
                         </div>
                     </div>
@@ -1137,62 +1332,138 @@
                  saveAs(blob, 'Schedule_View.html');
             };
 
-            const getCssFilter = (effect) => {
-                if(effect === 'grayscale') return 'grayscale(100%)';
-                if(effect === 'washout') return 'opacity(0.3) brightness(1.2) contrast(0.8)';
-                if(effect === 'washout_grayscale') return 'grayscale(100%) opacity(0.3) brightness(1.2) contrast(0.8)';
-                return 'none';
-            };
+              const getCssFilter = (effect, opacityOverride) => {
+                  const baseOpacity = (effect === 'washout' || effect === 'washout_grayscale') ? 0.2 : 1;
+                  const opacity = Math.max(0, Math.min(1, opacityOverride ?? baseOpacity));
+                  if(effect === 'grayscale') return { filter: 'grayscale(100%)', opacity };
+                  if(effect === 'washout') return { filter: 'brightness(1.2) contrast(0.8)', opacity };
+                  if(effect === 'washout_grayscale') return { filter: 'grayscale(100%) brightness(1.2) contrast(0.8)', opacity };
+                  return { filter: 'none', opacity };
+              };
 
             const PreviewSection = () => {
-                const headFilter = getCssFilter(excelConfig.headerEffect);
-                const footFilter = getCssFilter(excelConfig.footerEffect);
-                const waterFilter = getCssFilter(excelConfig.watermarkEffect);
+                  const headFilter = getCssFilter(excelConfig.headerEffect);
+                  const footFilter = getCssFilter(excelConfig.footerEffect);
+                  const waterFilter = getCssFilter(excelConfig.watermarkEffect, excelConfig.watermarkOpacity);
+
+                const previewColumns = [
+                    { key: 'date', label: t('date_col'), bg: excelConfig.dateColumnColor },
+                    { key: 'day', label: t('day'), bg: excelConfig.dateColumnColor },
+                    { key: 'morning', label: t('morn_col'), bg: excelConfig.mornCellColor },
+                    { key: 'night', label: t('eve_col'), bg: excelConfig.eveCellColor },
+                ];
+
+                if (enabledShifts.nightShift) previewColumns.push({ key: 'nightShift', label: t('night_col'), bg: excelConfig.nightCellColor });
+                if (enabledShifts.standby) previewColumns.push({ key: 'standby', label: t('standby_col'), bg: excelConfig.standbyCellColor });
+                previewColumns.push({ key: 'off', label: t('off_col'), bg: excelConfig.offCellColor });
+
+                const gridStyle = { gridTemplateColumns: `repeat(${previewColumns.length}, minmax(0, 1fr))` };
+                const headerWeight = weightValue(excelConfig.headerFontWeight);
+                const bodyWeight = weightValue(excelConfig.bodyFontWeight);
+                const linePx = lineWeightToPx(excelConfig.lineWeight || 'thin');
+                const framePx = {
+                    top: lineWeightToPx(excelConfig.frameBorders?.top || excelConfig.lineWeight || 'thin'),
+                    right: lineWeightToPx(excelConfig.frameBorders?.right || excelConfig.lineWeight || 'thin'),
+                    bottom: lineWeightToPx(excelConfig.frameBorders?.bottom || excelConfig.lineWeight || 'thin'),
+                    left: lineWeightToPx(excelConfig.frameBorders?.left || excelConfig.lineWeight || 'thin'),
+                };
+                const lineColor = excelConfig.lineColor || '#e2e8f0';
+                const frameColor = excelConfig.frameColor || lineColor;
 
                 return (
                     <div className="w-full bg-slate-200 p-4 rounded-lg overflow-hidden flex justify-center">
-                        <div className="bg-white w-[500px] min-h-[600px] shadow-2xl flex flex-col scale-90 md:scale-100 origin-top excel-preview-shadow text-slate-800 relative">
+                        <div className="bg-white w-[500px] min-h-[600px] shadow-2xl flex flex-col scale-90 md:scale-100 origin-top excel-preview-shadow text-slate-800 relative" style={{
+                            borderTop: `${framePx.top} solid ${frameColor}`,
+                            borderRight: `${framePx.right} solid ${frameColor}`,
+                            borderBottom: `${framePx.bottom} solid ${frameColor}`,
+                            borderLeft: `${framePx.left} solid ${frameColor}`
+                        }}>
                             {excelConfig.watermarkImage && (
-                                <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center p-10 overflow-hidden">
-                                     <img src={excelConfig.watermarkImage} className="w-full h-full object-contain opacity-50" style={{ filter: waterFilter }} />
-                                </div>
-                            )}
-                            <div className="h-24 w-full bg-slate-50 border-b border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10">
+                                  <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center p-10 overflow-hidden">
+                                       <img src={excelConfig.watermarkImage} className="w-full h-full object-contain" style={{ filter: waterFilter.filter, opacity: waterFilter.opacity }} />
+                                  </div>
+                              )}
+                              <div className={`h-24 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10 px-6`} style={{ borderBottom: `${linePx} solid ${lineColor}` }}>
                                 {excelConfig.headerImage ? (
-                                    <img src={excelConfig.headerImage} className="w-full h-full object-contain" style={{ filter: headFilter }} />
+                                      <img src={excelConfig.headerImage} className="h-full object-contain" style={{ filter: headFilter.filter, opacity: headFilter.opacity }} />
                                 ) : (
                                     <span className="text-xs text-slate-300 uppercase font-bold tracking-widest">{t('header_image')}</span>
                                 )}
                             </div>
-                            <div className="p-4 text-center font-bold text-lg border-b border-slate-100 z-10 relative" style={{ color: excelConfig.headerColor }}>
+                            <div className="p-4 text-center z-10 relative" style={{
+                                color: excelConfig.headerColor,
+                                fontWeight: headerWeight,
+                                fontSize: `${excelConfig.headerFontSize + 4}px`,
+                                borderBottom: `${linePx} solid ${lineColor}`
+                            }}>
                                 {excelConfig.officeName || "Office Name"}
                             </div>
                             <div className="flex-1 p-4 z-10 relative">
-                                <div className="border border-slate-300 bg-white/50 backdrop-blur-[1px]">
+                                <div className="bg-white/50 backdrop-blur-[1px]" style={{
+                                    borderTop: `${linePx} solid ${lineColor}`,
+                                    borderRight: `${linePx} solid ${lineColor}`,
+                                    borderBottom: `${linePx} solid ${lineColor}`,
+                                    borderLeft: `${linePx} solid ${lineColor}`
+                                }}>
                                     {/* Preview now shows header background */}
-                                    <div className="grid grid-cols-4 border-b border-slate-300 text-xs font-bold p-2 text-center" style={{ backgroundColor: excelConfig.headerRowColor, color: excelConfig.headerColor }}>
-                                        <div style={{ backgroundColor: 'transparent' }}>{t('date_col')}</div>
-                                        <div style={{ backgroundColor: 'transparent' }}>{t('day')}</div>
-                                        <div>{t('morn_col')}</div>
-                                        <div>{t('eve_col')}</div>
+                                    <div className="grid text-xs p-2 text-center" style={{
+                                        ...gridStyle,
+                                        backgroundColor: excelConfig.headerRowColor,
+                                        color: excelConfig.headerColor,
+                                        fontWeight: headerWeight,
+                                        fontSize: `${excelConfig.headerFontSize}px`,
+                                        borderBottom: `${linePx} solid ${lineColor}`,
+                                        borderLeft: `${linePx} solid ${lineColor}`,
+                                        borderRight: `${linePx} solid ${lineColor}`
+                                    }}>
+                                        {previewColumns.map(col => (
+                                            <div key={col.key} style={{ backgroundColor: 'transparent' }}>{col.label}</div>
+                                        ))}
                                     </div>
                                     {[1,2,3].map(i => (
-                                        <div key={i} className="grid grid-cols-4 border-b border-slate-100 text-xs p-0 text-center text-slate-500">
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.dateColumnColor }}>--/--</div>
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.dateColumnColor }}>---</div>
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.mornCellColor }}>Emp 1 / Emp 2</div>
-                                            <div className="p-2" style={{ backgroundColor: excelConfig.eveCellColor }}>Emp 3</div>
+                                        <div key={i} className="grid text-xs p-0 text-center" style={{
+                                            ...gridStyle,
+                                            color: excelConfig.textColor,
+                                            fontWeight: bodyWeight,
+                                            fontSize: `${excelConfig.bodyFontSize}px`,
+                                            borderBottom: `${linePx} solid ${lineColor}`,
+                                            borderLeft: `${linePx} solid ${lineColor}`,
+                                            borderRight: `${linePx} solid ${lineColor}`
+                                        }}>
+                                            {previewColumns.map(col => {
+                                                let text = '';
+                                                if (col.key === 'date') text = '--/--';
+                                                else if (col.key === 'day') text = '---';
+                                                else if (col.key === 'morning') text = 'Emp 1 / Emp 2';
+                                                else if (col.key === 'night') text = 'Emp 3';
+                                                else if (col.key === 'nightShift') text = 'Emp 4';
+                                                else if (col.key === 'standby') text = t('standby');
+                                                else if (col.key === 'off') text = t('off');
+                                                const isDate = col.key === 'date' || col.key === 'day';
+                                                const cellColor = isDate ? excelConfig.headerColor : excelConfig.textColor;
+                                                const cellWeight = isDate ? headerWeight : bodyWeight;
+                                                return <div key={col.key} className="p-2" style={{ backgroundColor: col.bg, color: cellColor, fontWeight: cellWeight }}>{text}</div>;
+                                            })}
                                         </div>
                                     ))}
-                                    <div className="p-2 text-center text-xs text-slate-400 italic">... {t('rest_of_data')} ...</div>
+                                    <div className="p-2 text-center text-xs text-slate-400 italic" style={{
+                                        borderTop: `${linePx} solid ${lineColor}`,
+                                        borderLeft: `${linePx} solid ${lineColor}`,
+                                        borderRight: `${linePx} solid ${lineColor}`
+                                    }}>... {t('rest_of_data')} ...</div>
                                 </div>
                             </div>
-                            <div className="p-4 pt-0 text-sm font-semibold flex justify-end z-10 relative">
-                                {t('prepared_by')}: {excelConfig.preparedBy || "..."}
+                            <div className="p-4 pt-0 text-sm flex justify-between items-center z-10 relative" style={{
+                                color: excelConfig.textColor,
+                                fontWeight: bodyWeight,
+                                fontSize: `${Math.max(8, excelConfig.bodyFontSize - 1)}px`,
+                                borderTop: `${linePx} solid ${lineColor}`
+                            }}>
+                                <span>{t('prepared_by')}: {excelConfig.preparedBy || "..."}</span>
                             </div>
-                            <div className="h-20 w-full bg-slate-50 border-t border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden z-10">
+                              <div className={`h-20 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10`} style={{ borderTop: `${linePx} solid ${lineColor}` }}>
                                 {excelConfig.footerImage ? (
-                                    <img src={excelConfig.footerImage} className="w-full h-full object-contain" style={{ filter: footFilter }} />
+                                      <img src={excelConfig.footerImage} className="w-full h-full object-contain" style={{ filter: footFilter.filter, opacity: footFilter.opacity }} />
                                 ) : (
                                     <span className="text-xs text-slate-300 uppercase font-bold tracking-widest">{t('footer_image')}</span>
                                 )}
@@ -1378,6 +1649,11 @@
                 });
             };
 
+            const lineWeight = viewSettings.lineWeight || '1px';
+            const lineColor = viewSettings.lineColor || '#e2e8f0';
+            const frameBorders = viewSettings.frameBorders || { top: lineWeight, right: lineWeight, bottom: lineWeight, left: lineWeight };
+            const frameColor = viewSettings.frameColor || lineColor;
+
             return (
                 <div className={`min-h-screen p-2 md:p-8 ${lang === 'ar' ? 'font-[Cairo]' : ''}`}>
                     <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1485,22 +1761,54 @@
 
                                         return (
                                             <div key={emp.id} className={`text-sm ${cardBg}`}>
-                                                <div className="flex justify-between mb-1 items-center">
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="font-semibold text-slate-700">{emp.name}</span>
-                                                        {pref === 'night' && <Moon size={12} className="text-indigo-600"/>}
-                                                        {pref === 'morning' && <Sun size={12} className="text-amber-500"/>}
-                                                    </div>
-                                                    <span className={`font-mono px-2 py-0.5 rounded text-xs ${Math.abs(s.total - stats.avg) > 1.5 ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-100'}`}>{s.total}</span>
+                                            <div className="flex justify-between mb-1 items-center">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-semibold text-slate-700">{emp.name}</span>
+                                                    {pref === 'night' && <Moon size={12} className="text-indigo-600"/>}
+                                                    {pref === 'morning' && <Sun size={12} className="text-amber-500"/>}
                                                 </div>
-                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex w-full mb-1">
-                                                    <div className="bg-amber-400" style={{ width: `${s.total ? (s.morning / s.total) * 100 : 0}%` }}></div>
-                                                    <div className="bg-indigo-900" style={{ width: `${s.total ? (s.night / s.total) * 100 : 0}%` }}></div>
-                                                    {enabledShifts.nightShift && <div className="bg-purple-900" style={{ width: `${s.total ? (s.nightShift / s.total) * 100 : 0}%` }}></div>}
+                                                <span className={`font-mono px-2 py-0.5 rounded text-xs ${Math.abs(s.total - stats.avg) > 1.5 ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-100'}`}>{s.total}</span>
+                                            </div>
+                                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex w-full mb-1">
+                                                <div className="bg-amber-400" style={{ width: `${s.total ? (s.morning / s.total) * 100 : 0}%` }}></div>
+                                                <div className="bg-indigo-900" style={{ width: `${s.total ? (s.night / s.total) * 100 : 0}%` }}></div>
+                                                {enabledShifts.nightShift && <div className="bg-purple-900" style={{ width: `${s.total ? (s.nightShift / s.total) * 100 : 0}%` }}></div>}
+                                            </div>
+                                            <div className="flex flex-col gap-2 text-[11px] text-slate-600">
+                                                <div className="flex items-center justify-between gap-3 flex-wrap w-full">
+                                                    {[
+                                                        { key: 'morn', label: t('morn'), count: s.morning, dot: 'bg-amber-400', show: true },
+                                                        { key: 'eve', label: t('eve'), count: s.night, dot: 'bg-indigo-900', show: true },
+                                                        { key: 'night', label: t('night'), count: s.nightShift, dot: 'bg-purple-900', show: enabledShifts.nightShift }
+                                                    ]
+                                                        .filter(item => item.show)
+                                                        .map(item => (
+                                                            <div key={item.key} className="flex items-center gap-1">
+                                                                <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
+                                                                <span>{item.label}</span>
+                                                                <span className="font-semibold text-slate-800">{item.count}</span>
+                                                            </div>
+                                                        ))}
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-3 flex-wrap w-full">
+                                                    {[
+                                                        { key: 'standby', label: t('standby'), count: s.standbyCount, dot: 'bg-cyan-600', show: enabledShifts.standby },
+                                                        { key: 'rest', label: t('off'), count: s.rest, dot: 'bg-slate-400', show: true }
+                                                    ]
+                                                        .filter(item => item.show)
+                                                        .map(item => (
+                                                            <div key={item.key} className="flex items-center gap-1">
+                                                                <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
+                                                                <span>{item.label}</span>
+                                                                <span className="font-semibold text-slate-800">{item.count}</span>
+                                                            </div>
+                                                        ))}
                                                 </div>
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    );
+                                })}
                                 </div>
                             </div>
                             
@@ -1514,10 +1822,10 @@
                             )}
                         </div>
 
-                        <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
+                        <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border overflow-hidden min-h-[600px] flex flex-col" style={{ borderTopWidth: frameBorders.top, borderRightWidth: frameBorders.right, borderBottomWidth: frameBorders.bottom, borderLeftWidth: frameBorders.left, borderColor: frameColor, borderStyle: 'solid' }}>
                             {activeTab === 'schedule' && (
                                 <div className="flex flex-col h-full">
-                                    <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center sticky top-0 gap-4">
+                                    <div className="p-4 border-b bg-slate-50 flex flex-wrap justify-between items-center sticky top-0 gap-4" style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                         <div className="flex items-center gap-4">
                                             <h2 className="font-bold text-slate-700">{t('view_title')}</h2>
                                             <div className="flex items-center bg-white border border-slate-300 rounded-md px-2 py-1 shadow-sm">
@@ -1537,43 +1845,43 @@
                                         </div>
                                     </div>
                                     <div className="overflow-auto flex-1 p-0 custom-scroll">
-                                        <table className="w-full text-left border-collapse table-fixed">
+                                        <table className="w-full text-center border-collapse table-fixed">
                                             <thead className="bg-white sticky top-0 z-10 shadow-sm">
-                                                <tr style={{ borderBottomWidth: viewSettings.borderWidth }}>
+                                                <tr style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                     {/* FIXED: Date column with fixed width and center alignment */}
-                                                    <th className="p-3 bg-slate-50 text-slate-500 font-bold uppercase text-center w-[120px]" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: viewSettings.borderWidth, width: '120px' }}>{t('date_col')}</th>
-                                                    
-                                                    <th className="p-3 bg-amber-50/30 text-amber-700 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>
+                                                    <th className="p-3 bg-slate-50 text-slate-500 font-bold uppercase text-center w-[120px]" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid', width: '120px' }}>{t('date_col')}</th>
+
+                                                    <th className="p-3 bg-amber-50/30 text-amber-700 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                         {t('morn_col')}
                                                         {showShiftTimes && (
-                                                            <div className="font-normal mt-1 opacity-80 space-y-1" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
+                                                            <div className="font-normal mt-1 opacity-80 space-y-1 text-center" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
                                                                 {getShiftTimeSummary('morning').map(line => <div key={line}>{line}</div>)}
                                                             </div>
                                                         )}
                                                     </th>
-                                                    <th className="p-3 bg-indigo-50/30 text-indigo-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>
+                                                    <th className="p-3 bg-indigo-50/30 text-indigo-900 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                         {t('eve_col')}
                                                         {showShiftTimes && (
-                                                            <div className="font-normal mt-1 opacity-80 space-y-1" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
+                                                            <div className="font-normal mt-1 opacity-80 space-y-1 text-center" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
                                                                 {getShiftTimeSummary('night').map(line => <div key={line}>{line}</div>)}
                                                             </div>
                                                         )}
                                                     </th>
                                                     {enabledShifts.nightShift && (
-                                                        <th className="p-3 bg-purple-50/30 text-purple-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>
+                                                        <th className="p-3 bg-purple-50/30 text-purple-900 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                             {t('night_col')}
                                                             {showShiftTimes && (
-                                                                <div className="font-normal mt-1 opacity-80 space-y-1" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
+                                                                <div className="font-normal mt-1 opacity-80 space-y-1 text-center" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
                                                                     {getShiftTimeSummary('nightShift').map(line => <div key={line}>{line}</div>)}
                                                                 </div>
                                                             )}
                                                         </th>
                                                     )}
-                                                    {enabledShifts.standby && <th className="p-3 bg-cyan-50/30 text-cyan-900 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: viewSettings.borderWidth }}>{t('standby_col')}</th>}
-                                                    <th className="p-3 text-slate-500 font-bold rtl:text-right text-start" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: viewSettings.borderWidth }}>{t('off_col')}</th>
+                                                    {enabledShifts.standby && <th className="p-3 bg-cyan-50/30 text-cyan-900 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>{t('standby_col')}</th>}
+                                                    <th className="p-3 text-slate-500 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>{t('off_col')}</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-100">
+                                            <tbody className="" style={{ borderColor: lineColor, borderStyle: 'solid' }}>
                                                 {getCalculatedDays().map(day => {
                                                     const dKey = formatDateKey(day);
                                                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
@@ -1592,10 +1900,10 @@
                                                     if(enabledShifts.standby) shiftsToRender.push({ key: 'standby', start: null, end: null, bg: 'bg-cyan-100 border-cyan-300 text-cyan-900' });
                                                     
                                                     // FIX: Add dynamic border width style
-                                                    const cellStyle = { borderRightWidth: viewSettings.borderWidth, borderLeftWidth: viewSettings.borderWidth };
+                                                    const cellStyle = { borderRightWidth: lineWeight, borderLeftWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' };
 
                                                     return (
-                                                        <tr key={dKey} className={`group hover:bg-slate-50 ${isFri ? 'bg-slate-50/60' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`} style={{ borderBottomWidth: viewSettings.borderWidth }}>
+                                                        <tr key={dKey} className={`group hover:bg-slate-50 ${isFri ? 'bg-gray-100' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`} style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                             {/* FIXED: Date column cells center aligned */}
                                                             <td className="p-3 border-e border-slate-100 align-top text-center" style={{ ...cellStyle, width: '120px' }}>
                                                                 <div className="font-bold text-slate-700" style={{ fontSize: `${viewSettings.headerFontSize}px` }}>{formatShortDate(day)}</div>
@@ -1603,7 +1911,7 @@
                                                             </td>
                                                             {shiftsToRender.map(sh => (
                                                                 <td key={sh.key} className="p-2 border-e border-slate-100 align-top" style={cellStyle}>
-                                                                    <div className="flex flex-wrap gap-2">
+                                                                    <div className="flex flex-wrap gap-2 justify-center">
                                                                         {employees.map(emp => {
                                                                             const isSelected = (s[sh.key] || []).includes(emp.id);
                                                                             const isWorking = workers.includes(emp.id);
@@ -1631,11 +1939,11 @@
                                                                             )
                                                                         })}
                                                                     </div>
-                                                                    <div className={`mt-1 text-end ${(s[sh.key]||[]).length !== req[sh.key] ? 'text-red-400 font-medium' : 'text-green-500 opacity-50'}`} style={{ fontSize: `${Math.max(8, viewSettings.cellFontSize - 2)}px` }}>{(s[sh.key]||[]).length}/{req[sh.key]}</div>
+                                                                    <div className={`mt-1 text-center ${(s[sh.key]||[]).length !== req[sh.key] ? 'text-red-400 font-medium' : 'text-green-500 opacity-50'}`} style={{ fontSize: `${Math.max(8, viewSettings.cellFontSize - 2)}px` }}>{(s[sh.key]||[]).length}/{req[sh.key]}</div>
                                                                 </td>
                                                             ))}
                                                             <td className="p-2 align-top bg-slate-50/30" style={cellStyle}>
-                                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
                                                                     {offDuty.map(emp => {
                                                                         const isHighlighted = highlightedEmp == emp.id;
                                                                         const isDimmed = highlightedEmp && !isHighlighted;
@@ -1658,14 +1966,17 @@
                             {activeTab === 'export_opts' && (
                                 <div className="p-10 flex flex-col items-center justify-start text-slate-500 flex-1 overflow-auto custom-scroll w-full">
                                     <div className="mb-6 text-center">
-                                        <SettingsIcon size={48} className="mx-auto mb-2 opacity-50 text-emerald-600"/>
                                         <h3 className="font-bold text-lg text-slate-700">{t('excel_settings_title')}</h3>
                                         <p>{t('excel_settings_desc')}</p>
                                     </div>
 
                                     <div className="w-full flex flex-col lg:flex-row gap-8 items-start">
                                         <div className="w-full lg:w-1/2 bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-6">
-                                            
+
+                                            <div className="flex justify-end">
+                                                <button onClick={resetExcelStyles} className="text-xs text-blue-600 hover:text-blue-800 underline">{t('reset_excel_styles')}</button>
+                                            </div>
+
                                             <div className="grid grid-cols-1 gap-4">
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('office_name')}</label>
@@ -1674,6 +1985,120 @@
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('prepared_by')}</label>
                                                     <input type="text" className="w-full border p-2 rounded text-slate-700" value={excelConfig.preparedBy} onChange={e=>setExcelConfig({...excelConfig, preparedBy: e.target.value})} />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_text_color')}</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.headerColor} onChange={e=>setExcelConfig({...excelConfig, headerColor: e.target.value})}/>
+                                                        <span className="text-xs text-slate-500">{t('header_text_color')}</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_color')}</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.textColor} onChange={e=>setExcelConfig({...excelConfig, textColor: e.target.value})}/>
+                                                        <span className="text-xs text-slate-500">{t('text_color')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_header')} ({excelConfig.headerFontSize}px)</label>
+                                                    <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.headerFontSize} onChange={e=>setExcelConfig({...excelConfig, headerFontSize: +e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_body')} ({excelConfig.bodyFontSize}px)</label>
+                                                    <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.bodyFontSize} onChange={e=>setExcelConfig({...excelConfig, bodyFontSize: +e.target.value})} />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_weight')}</label>
+                                                      <select value={excelConfig.headerFontWeight} onChange={e=>setExcelConfig({...excelConfig, headerFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                          <option value="thin">{t('weight_thin')}</option>
+                                                          <option value="extra_light">{t('weight_extra_light')}</option>
+                                                          <option value="light">{t('weight_light')}</option>
+                                                          <option value="normal">{t('weight_normal')}</option>
+                                                          <option value="medium">{t('weight_medium')}</option>
+                                                          <option value="semibold">{t('weight_semibold')}</option>
+                                                          <option value="bold">{t('weight_bold')}</option>
+                                                          <option value="extra_bold">{t('weight_extra_bold')}</option>
+                                                          <option value="black">{t('weight_black')}</option>
+                                                      </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('body_weight')}</label>
+                                                      <select value={excelConfig.bodyFontWeight} onChange={e=>setExcelConfig({...excelConfig, bodyFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                          <option value="thin">{t('weight_thin')}</option>
+                                                          <option value="extra_light">{t('weight_extra_light')}</option>
+                                                          <option value="light">{t('weight_light')}</option>
+                                                          <option value="normal">{t('weight_normal')}</option>
+                                                          <option value="medium">{t('weight_medium')}</option>
+                                                          <option value="semibold">{t('weight_semibold')}</option>
+                                                          <option value="bold">{t('weight_bold')}</option>
+                                                          <option value="extra_bold">{t('weight_extra_bold')}</option>
+                                                          <option value="black">{t('weight_black')}</option>
+                                                      </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase">{t('excel_border_settings')}</label>
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_top')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.top || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, top: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_right')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.right || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, right: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_bottom')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.bottom || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, bottom: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_left')}</span>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.left || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, left: e.target.value}})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_weight')}</label>
+                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.lineWeight} onChange={e=>setExcelConfig({...excelConfig, lineWeight: e.target.value})}>
+                                                            <option value="thin">{t('thin')}</option>
+                                                            <option value="medium">{t('medium')}</option>
+                                                            <option value="thick">{t('thick')}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_color')}</label>
+                                                        <input type="color" className="w-full h-10 border border-slate-300 rounded" value={excelConfig.lineColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, lineColor: e.target.value})}/>
+                                                    </div>
+                                                    <div className="md:col-span-2 flex items-center gap-3">
+                                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1">{t('frame_color')}</label>
+                                                        <input type="color" className="w-16 h-9 border border-slate-300 rounded" value={excelConfig.frameColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, frameColor: e.target.value})}/>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <hr className="border-slate-100"/>
@@ -1740,19 +2165,21 @@
                                                     <div className="flex-1 space-y-2">
                                                         <input type="file" ref={watermarkImgRef} className="hidden" accept="image/*" onChange={handleWatermarkImageUpload}/>
                                                         <button onClick={()=>watermarkImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
-                                                            <select value={excelConfig.watermarkEffect} onChange={e=>setExcelConfig({...excelConfig, watermarkEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                <option value="none">{t('ef_none')}</option>
-                                                                <option value="grayscale">{t('ef_gray')}</option>
-                                                                <option value="washout">{t('ef_wash')}</option>
-                                                                <option value="washout_grayscale">{t('ef_wash_gray')}</option>
-                                                            </select>
-                                                        </div>
-                                                        <span className="text-[10px] text-slate-400">{t('watermark_hint')}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                          <div>
+                                                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
+                                                              <select value={excelConfig.watermarkEffect} onChange={e=>setExcelConfig({...excelConfig, watermarkEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
+                                                                  <option value="washout">{t('ef_wash')}</option>
+                                                                  <option value="washout_grayscale">{t('ef_wash_gray')}</option>
+                                                              </select>
+                                                          </div>
+                                                          <div>
+                                                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('watermark_opacity')} ({Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)}%)</label>
+                                                              <input type="range" min="5" max="100" step="5" className="w-full accent-blue-600" value={Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)} onChange={e=>setExcelConfig({...excelConfig, watermarkOpacity: Math.round(+e.target.value)/100})} />
+                                                          </div>
+                                                          <span className="text-[10px] text-slate-400">{t('watermark_hint')}</span>
+                                                      </div>
+                                                  </div>
+                                              </div>
                                             <hr className="border-slate-100"/>
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t('cell_colors')}</label>
@@ -1850,9 +2277,11 @@
                                                 <tbody className="divide-y divide-slate-100">
                                                     {getCalculatedDays().map(day => {
                                                         const dKey = formatDateKey(day);
+                                                        const isFri = day.getDay() === 5;
+                                                        const isSat = day.getDay() === 6;
                                                         return (
-                                                            <tr key={dKey}>
-                                                                <td className="p-2 ps-3 font-medium text-slate-600 border-e border-slate-100 bg-white sticky start-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] rtl:shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">{formatShortDate(day)} <span className="text-[10px] uppercase text-slate-400 ms-1">{getDayName(day)}</span></td>
+                                                            <tr key={dKey} className={`hover:bg-slate-50 ${isFri ? 'bg-gray-100' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`}>
+                                                                <td className="p-2 ps-3 font-medium text-slate-600 border-e border-slate-100 bg-white sticky start-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] rtl:shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">{formatShortDate(day)} <span className={`text-[10px] uppercase ${isFri ? 'text-red-400 font-bold' : 'text-slate-400'} ms-1`}>{getDayName(day)}</span></td>
                                                                 {employees.map(e => {
                                                                     const status = availability[e.id]?.[dKey];
                                                                     let cellClass = "";
@@ -1906,7 +2335,10 @@
                                         <div className="w-full max-w-3xl flex flex-col gap-6 pb-12">
                                             {/* NEW: VIEW SETTINGS */}
                                             <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-                                                <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Sliders size={18} className="text-blue-500"/> {t('view_settings')}</h3>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Sliders size={18} className="text-blue-500"/> {t('view_settings')}</h3>
+                                                    <button onClick={resetViewStyles} className="text-xs text-blue-600 hover:text-blue-800 underline mt-1">{t('reset_view_styles')}</button>
+                                                </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_size_header')} ({viewSettings.headerFontSize}px)</label>
@@ -1916,13 +2348,60 @@
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_size_cell')} ({viewSettings.cellFontSize}px)</label>
                                                         <input type="range" min="8" max="20" step="1" className="w-full accent-blue-600" value={viewSettings.cellFontSize} onChange={e=>setViewSettings({...viewSettings, cellFontSize: +e.target.value})} />
                                                     </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('border_thickness')}</label>
-                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.borderWidth} onChange={e=>setViewSettings({...viewSettings, borderWidth: e.target.value})}>
-                                                            <option value="1px">{t('thin')}</option>
-                                                            <option value="2px">{t('medium')}</option>
-                                                            <option value="3px">{t('thick')}</option>
-                                                        </select>
+                                                    <div className="md:col-span-2 space-y-2">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('frame_border')}</label>
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_top')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.top || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, top: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_right')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.right || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, right: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_bottom')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.bottom || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, bottom: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_left')}</span>
+                                                                <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.frameBorders?.left || '1px'} onChange={e=>setViewSettings({...viewSettings, frameBorders: {...viewSettings.frameBorders, left: e.target.value}})}>
+                                                                    <option value="1px">{t('thin')}</option>
+                                                                    <option value="2px">{t('medium')}</option>
+                                                                    <option value="3px">{t('thick')}</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('frame_color')}</label>
+                                                            <input type="color" className="w-16 h-9 border border-slate-300 rounded" value={viewSettings.frameColor || '#e2e8f0'} onChange={e=>setViewSettings({...viewSettings, frameColor: e.target.value})} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_weight')}</label>
+                                                            <select className="w-full p-2 border border-slate-300 rounded text-sm" value={viewSettings.lineWeight} onChange={e=>setViewSettings({...viewSettings, lineWeight: e.target.value})}>
+                                                                <option value="1px">{t('thin')}</option>
+                                                                <option value="2px">{t('medium')}</option>
+                                                                <option value="3px">{t('thick')}</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_color')}</label>
+                                                            <input type="color" className="w-full h-10 border border-slate-300 rounded" value={viewSettings.lineColor || '#e2e8f0'} onChange={e=>setViewSettings({...viewSettings, lineColor: e.target.value})} />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
