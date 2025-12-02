@@ -130,12 +130,15 @@
                 text_color: "Text Color",
                 header_weight: "Header Weight",
                 body_weight: "Body Weight",
+                weight_thin: "Thin",
+                weight_extra_light: "Extra Light",
                 weight_light: "Light",
                 weight_normal: "Normal",
                 weight_medium: "Medium",
                 weight_semibold: "Semi-Bold",
                 weight_bold: "Bold",
                 weight_extra_bold: "Extra Bold",
+                weight_black: "Black",
                 font_size_header: "Header Size",
                 font_size_body: "Body Size",
                 header_image: "Header Image",
@@ -156,6 +159,7 @@
                 use_watermark: "Use as Watermark (Background)",
                 watermark_image: "Background Image (Watermark)",
                 watermark_hint: "Check this to place the image BEHIND the data.",
+                watermark_opacity: "Background Transparency",
                 rest_of_data: "Rest of data...",
                 mode_month: "Month Mode",
                 mode_range: "Range Mode",
@@ -183,6 +187,7 @@
                 line_weight: "Grid Line Weight",
                 line_color: "Grid Line Color",
                 excel_border_settings: "Excel Border Styling",
+                watermark_opacity: "Background Transparency",
                 reset_view_styles: "Restore View Defaults",
                 reset_excel_styles: "Restore Excel Defaults"
             },
@@ -274,14 +279,17 @@
                 header_color: "لون صف العناوين",
                 header_text_color: "نص الترويسة",
                 text_color: "لون النص",
-                header_weight: "سمك خط الترويسة",
-                body_weight: "سمك خط المحتوى",
-                weight_light: "رفيع",
-                weight_normal: "عادي",
-                weight_medium: "متوسط",
-                weight_semibold: "نصف عريض",
-                weight_bold: "عريض",
-                weight_extra_bold: "عريض جداً",
+                 header_weight: "سمك خط الترويسة",
+                 body_weight: "سمك خط المحتوى",
+                 weight_thin: "رفيع جداً",
+                 weight_extra_light: "رفيع",
+                 weight_light: "خفيف",
+                 weight_normal: "عادي",
+                 weight_medium: "متوسط",
+                 weight_semibold: "نصف عريض",
+                 weight_bold: "عريض",
+                 weight_extra_bold: "عريض جداً",
+                 weight_black: "ثقيل",
                 font_size_header: "حجم خط العنوان",
                 font_size_body: "حجم خط النص",
                 header_image: "صورة الترويسة (Header)",
@@ -301,7 +309,8 @@
                 ef_wash_gray: "باهت + أبيض وأسود",
                 use_watermark: "استخدام كعلامة مائية (خلفية)", 
                 watermark_image: "صورة الخلفية (علامة مائية)",
-                watermark_hint: "اجعل الصورة تظهر خلف البيانات (شفافة).",
+                 watermark_hint: "اجعل الصورة تظهر خلف البيانات (شفافة).",
+                 watermark_opacity: "شفافية الخلفية",
                 rest_of_data: "باقي البيانات...",
                 mode_month: "نظام الأشهر",
                 mode_range: "نظام الفترة (تاريخ)",
@@ -349,15 +358,16 @@
             headerColor: "#db6fab",
             textColor: "#000000",
             headerFontSize: 12,
-            headerFontWeight: 'bold',
-            bodyFontSize: 11,
-            bodyFontWeight: 'normal',
-            headerImage: null,
-            footerImage: null,
-            watermarkImage: null,
-            headerEffect: 'none',
-            footerEffect: 'none',
-            watermarkEffect: 'washout',
+              headerFontWeight: 'normal',
+              bodyFontSize: 11,
+              bodyFontWeight: 'normal',
+              headerImage: null,
+              footerImage: null,
+              watermarkImage: null,
+              headerEffect: 'none',
+              footerEffect: 'none',
+              watermarkEffect: 'washout',
+              watermarkOpacity: 0.35,
             lineWeight: 'thin',
             lineColor: '#e2e8f0',
             frameBorders: { top: 'thin', right: 'thin', bottom: 'thin', left: 'thin' },
@@ -499,11 +509,12 @@
                 delete sanitized.borderWeight;
 
                 if (!['washout','washout_grayscale'].includes(sanitized.watermarkEffect)) sanitized.watermarkEffect = 'washout';
-                const allowedWeights = ['light','normal','medium','semibold','bold','extra_bold'];
-                if (!allowedWeights.includes(sanitized.headerFontWeight)) sanitized.headerFontWeight = 'bold';
-                if (!allowedWeights.includes(sanitized.bodyFontWeight)) sanitized.bodyFontWeight = 'normal';
-                sanitized.headerFontSize = Math.max(8, Math.min(48, Number(sanitized.headerFontSize) || 12));
-                sanitized.bodyFontSize = Math.max(8, Math.min(48, Number(sanitized.bodyFontSize) || 11));
+                  const allowedWeights = ['thin','extra_light','light','normal','medium','semibold','bold','extra_bold','black'];
+                  if (!allowedWeights.includes(sanitized.headerFontWeight)) sanitized.headerFontWeight = 'normal';
+                  if (!allowedWeights.includes(sanitized.bodyFontWeight)) sanitized.bodyFontWeight = 'normal';
+                  sanitized.headerFontSize = Math.max(8, Math.min(48, Number(sanitized.headerFontSize) || 12));
+                  sanitized.bodyFontSize = Math.max(8, Math.min(48, Number(sanitized.bodyFontSize) || 11));
+                  sanitized.watermarkOpacity = Math.max(0.05, Math.min(1, Number(sanitized.watermarkOpacity ?? DEFAULT_EXCEL_CONFIG.watermarkOpacity) || DEFAULT_EXCEL_CONFIG.watermarkOpacity));
 
                 const allowedLineWeights = ['thin','medium','thick'];
                 if (config?.borderWeight && allowedLineWeights.includes(config.borderWeight)) {
@@ -788,10 +799,20 @@
                 return 'FF' + c.toUpperCase();
             };
 
-            const weightValue = (weight) => {
-                const map = { light: 300, normal: 400, medium: 500, semibold: 600, bold: 700, extra_bold: 800 };
-                return map[weight] || 600;
-            };
+              const weightValue = (weight) => {
+                  const map = {
+                      thin: 100,
+                      extra_light: 200,
+                      light: 300,
+                      normal: 400,
+                      medium: 500,
+                      semibold: 600,
+                      bold: 700,
+                      extra_bold: 800,
+                      black: 900
+                  };
+                  return map[weight] || 400;
+              };
 
             const isBoldWeight = (weight) => weightValue(weight) >= 600;
 
@@ -848,23 +869,26 @@
                 link.click();
             };
 
-            const processImageEffect = async (base64Str, effect) => {
-                 if (!base64Str || effect === 'none') return base64Str;
-                 return new Promise((resolve) => {
-                     const img = document.createElement('img');
-                     img.onload = () => {
-                         const canvas = document.createElement('canvas');
-                         canvas.width = img.width;
-                         canvas.height = img.height;
-                         const ctx = canvas.getContext('2d');
-                         let filter = '';
-                         if(effect === 'grayscale') filter = 'grayscale(100%)';
-                         else if(effect === 'washout') filter = 'opacity(0.3) brightness(1.2) contrast(0.8)';
-                         else if(effect === 'washout_grayscale') filter = 'grayscale(100%) opacity(0.3) brightness(1.2) contrast(0.8)';
-                         ctx.filter = filter;
-                         ctx.drawImage(img, 0, 0);
-                         resolve(canvas.toDataURL('image/png'));
-                     };
+             const processImageEffect = async (base64Str, effect, opacityOverride) => {
+                   if (!base64Str || effect === 'none') return base64Str;
+                   return new Promise((resolve) => {
+                       const img = document.createElement('img');
+                       img.onload = () => {
+                           const canvas = document.createElement('canvas');
+                           canvas.width = img.width;
+                           canvas.height = img.height;
+                           const ctx = canvas.getContext('2d');
+                           const baseOpacity = (effect === 'washout' || effect === 'washout_grayscale') ? 0.35 : 1;
+                           const opacity = Math.max(0, Math.min(1, opacityOverride ?? baseOpacity));
+                           let filter = '';
+                           if(effect === 'grayscale') filter = 'grayscale(100%)';
+                           else if(effect === 'washout') filter = `opacity(${opacity}) brightness(1.2) contrast(0.8)`;
+                           else if(effect === 'washout_grayscale') filter = `grayscale(100%) opacity(${opacity}) brightness(1.2) contrast(0.8)`;
+                           else filter = `opacity(${opacity})`;
+                           ctx.filter = filter;
+                           ctx.drawImage(img, 0, 0);
+                           resolve(canvas.toDataURL('image/png'));
+                       };
                      img.src = base64Str;
                  });
             };
@@ -1063,7 +1087,7 @@
 
                 // --- 7. WATERMARK ---
                 if (excelConfig.watermarkImage) {
-                    const finalWatermarkImgStr = await processImageEffect(excelConfig.watermarkImage, excelConfig.watermarkEffect);
+                    const finalWatermarkImgStr = await processImageEffect(excelConfig.watermarkImage, excelConfig.watermarkEffect, excelConfig.watermarkOpacity);
                     const imageId = workbook.addImage({
                         base64: finalWatermarkImgStr,
                         extension: 'png',
@@ -1266,17 +1290,19 @@
                  saveAs(blob, 'Schedule_View.html');
             };
 
-            const getCssFilter = (effect) => {
-                if(effect === 'grayscale') return 'grayscale(100%)';
-                if(effect === 'washout') return 'opacity(0.3) brightness(1.2) contrast(0.8)';
-                if(effect === 'washout_grayscale') return 'grayscale(100%) opacity(0.3) brightness(1.2) contrast(0.8)';
-                return 'none';
-            };
+              const getCssFilter = (effect, opacityOverride) => {
+                  const baseOpacity = (effect === 'washout' || effect === 'washout_grayscale') ? 0.35 : 1;
+                  const opacity = Math.max(0, Math.min(1, opacityOverride ?? baseOpacity));
+                  if(effect === 'grayscale') return { filter: 'grayscale(100%)', opacity };
+                  if(effect === 'washout') return { filter: 'brightness(1.2) contrast(0.8)', opacity };
+                  if(effect === 'washout_grayscale') return { filter: 'grayscale(100%) brightness(1.2) contrast(0.8)', opacity };
+                  return { filter: 'none', opacity };
+              };
 
             const PreviewSection = () => {
-                const headFilter = getCssFilter(excelConfig.headerEffect);
-                const footFilter = getCssFilter(excelConfig.footerEffect);
-                const waterFilter = getCssFilter(excelConfig.watermarkEffect);
+                  const headFilter = getCssFilter(excelConfig.headerEffect);
+                  const footFilter = getCssFilter(excelConfig.footerEffect);
+                  const waterFilter = getCssFilter(excelConfig.watermarkEffect, excelConfig.watermarkOpacity);
 
                 const previewColumns = [
                     { key: 'date', label: t('date_col'), bg: excelConfig.dateColumnColor },
@@ -1311,13 +1337,13 @@
                             borderLeft: `${framePx.left} solid ${frameColor}`
                         }}>
                             {excelConfig.watermarkImage && (
-                                <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center p-10 overflow-hidden">
-                                     <img src={excelConfig.watermarkImage} className="w-full h-full object-contain opacity-50" style={{ filter: waterFilter }} />
-                                </div>
-                            )}
-                            <div className={`h-24 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10 px-6`} style={{ borderBottom: `${linePx} dashed ${lineColor}` }}>
+                                  <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center p-10 overflow-hidden">
+                                       <img src={excelConfig.watermarkImage} className="w-full h-full object-contain" style={{ filter: waterFilter.filter, opacity: waterFilter.opacity }} />
+                                  </div>
+                              )}
+                              <div className={`h-24 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10 px-6`} style={{ borderBottom: `${linePx} solid ${lineColor}` }}>
                                 {excelConfig.headerImage ? (
-                                    <img src={excelConfig.headerImage} className="h-full object-contain" style={{ filter: headFilter }} />
+                                      <img src={excelConfig.headerImage} className="h-full object-contain" style={{ filter: headFilter.filter, opacity: headFilter.opacity }} />
                                 ) : (
                                     <span className="text-xs text-slate-300 uppercase font-bold tracking-widest">{t('header_image')}</span>
                                 )}
@@ -1393,9 +1419,9 @@
                             }}>
                                 <span>{t('prepared_by')}: {excelConfig.preparedBy || "..."}</span>
                             </div>
-                            <div className={`h-20 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10`} style={{ borderTop: `${linePx} dashed ${lineColor}` }}>
+                              <div className={`h-20 w-full bg-slate-50 flex items-center justify-center relative overflow-hidden z-10`} style={{ borderTop: `${linePx} solid ${lineColor}` }}>
                                 {excelConfig.footerImage ? (
-                                    <img src={excelConfig.footerImage} className="w-full h-full object-contain" style={{ filter: footFilter }} />
+                                      <img src={excelConfig.footerImage} className="w-full h-full object-contain" style={{ filter: footFilter.filter, opacity: footFilter.opacity }} />
                                 ) : (
                                     <span className="text-xs text-slate-300 uppercase font-bold tracking-widest">{t('footer_image')}</span>
                                 )}
@@ -1949,25 +1975,31 @@
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_weight')}</label>
-                                                    <select value={excelConfig.headerFontWeight} onChange={e=>setExcelConfig({...excelConfig, headerFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
-                                                        <option value="light">{t('weight_light')}</option>
-                                                        <option value="normal">{t('weight_normal')}</option>
-                                                        <option value="medium">{t('weight_medium')}</option>
-                                                        <option value="semibold">{t('weight_semibold')}</option>
-                                                        <option value="bold">{t('weight_bold')}</option>
-                                                        <option value="extra_bold">{t('weight_extra_bold')}</option>
-                                                    </select>
+                                                      <select value={excelConfig.headerFontWeight} onChange={e=>setExcelConfig({...excelConfig, headerFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                          <option value="thin">{t('weight_thin')}</option>
+                                                          <option value="extra_light">{t('weight_extra_light')}</option>
+                                                          <option value="light">{t('weight_light')}</option>
+                                                          <option value="normal">{t('weight_normal')}</option>
+                                                          <option value="medium">{t('weight_medium')}</option>
+                                                          <option value="semibold">{t('weight_semibold')}</option>
+                                                          <option value="bold">{t('weight_bold')}</option>
+                                                          <option value="extra_bold">{t('weight_extra_bold')}</option>
+                                                          <option value="black">{t('weight_black')}</option>
+                                                      </select>
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('body_weight')}</label>
-                                                    <select value={excelConfig.bodyFontWeight} onChange={e=>setExcelConfig({...excelConfig, bodyFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
-                                                        <option value="light">{t('weight_light')}</option>
-                                                        <option value="normal">{t('weight_normal')}</option>
-                                                        <option value="medium">{t('weight_medium')}</option>
-                                                        <option value="semibold">{t('weight_semibold')}</option>
-                                                        <option value="bold">{t('weight_bold')}</option>
-                                                        <option value="extra_bold">{t('weight_extra_bold')}</option>
-                                                    </select>
+                                                      <select value={excelConfig.bodyFontWeight} onChange={e=>setExcelConfig({...excelConfig, bodyFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                          <option value="thin">{t('weight_thin')}</option>
+                                                          <option value="extra_light">{t('weight_extra_light')}</option>
+                                                          <option value="light">{t('weight_light')}</option>
+                                                          <option value="normal">{t('weight_normal')}</option>
+                                                          <option value="medium">{t('weight_medium')}</option>
+                                                          <option value="semibold">{t('weight_semibold')}</option>
+                                                          <option value="bold">{t('weight_bold')}</option>
+                                                          <option value="extra_bold">{t('weight_extra_bold')}</option>
+                                                          <option value="black">{t('weight_black')}</option>
+                                                      </select>
                                                 </div>
                                             </div>
 
@@ -2092,17 +2124,21 @@
                                                     <div className="flex-1 space-y-2">
                                                         <input type="file" ref={watermarkImgRef} className="hidden" accept="image/*" onChange={handleWatermarkImageUpload}/>
                                                         <button onClick={()=>watermarkImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
-                                                            <select value={excelConfig.watermarkEffect} onChange={e=>setExcelConfig({...excelConfig, watermarkEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                <option value="washout">{t('ef_wash')}</option>
-                                                                <option value="washout_grayscale">{t('ef_wash_gray')}</option>
-                                                            </select>
-                                                        </div>
-                                                        <span className="text-[10px] text-slate-400">{t('watermark_hint')}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                          <div>
+                                                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
+                                                              <select value={excelConfig.watermarkEffect} onChange={e=>setExcelConfig({...excelConfig, watermarkEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
+                                                                  <option value="washout">{t('ef_wash')}</option>
+                                                                  <option value="washout_grayscale">{t('ef_wash_gray')}</option>
+                                                              </select>
+                                                          </div>
+                                                          <div>
+                                                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('watermark_opacity')} ({Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)}%)</label>
+                                                              <input type="range" min="5" max="100" step="5" className="w-full accent-blue-600" value={Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)} onChange={e=>setExcelConfig({...excelConfig, watermarkOpacity: Math.round(+e.target.value)/100})} />
+                                                          </div>
+                                                          <span className="text-[10px] text-slate-400">{t('watermark_hint')}</span>
+                                                      </div>
+                                                  </div>
+                                              </div>
                                             <hr className="border-slate-100"/>
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t('cell_colors')}</label>
