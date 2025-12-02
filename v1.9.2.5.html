@@ -965,17 +965,33 @@
                 if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: 35 });
                 columns.push({ header: t('off_col'), key: 'off', width: 35 });
 
-                const desiredTableWidth = 110;
-                const offWidth = Math.max(
-                    35,
-                    desiredTableWidth - columns.filter(c => c.key !== 'off').reduce((sum, c) => sum + (c.width || 0), 0)
-                );
+                const targetTableWidth = 110;
+                const minColWidth = 12;
 
                 const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
-                columns = columns.map(col => {
-                    const width = col.key === 'off' ? offWidth : col.width;
-                    return hideShiftHeader(col.key) ? { ...col, header: '', width } : { ...col, width };
+                const baseColumns = columns.map(col => hideShiftHeader(col.key) ? { ...col, header: '' } : col);
+
+                const baseWidthTotal = baseColumns.reduce((sum, col) => sum + (col.width || 0), 0);
+                const scaledColumns = baseColumns.map(col => {
+                    const scaledWidth = Math.max(minColWidth, (col.width || minColWidth) * (targetTableWidth / baseWidthTotal));
+                    return { ...col, width: scaledWidth };
                 });
+
+                let totalScaledWidth = scaledColumns.reduce((sum, col) => sum + (col.width || 0), 0);
+                const offIndex = scaledColumns.findIndex(col => col.key === 'off');
+
+                if (offIndex !== -1) {
+                    const offCol = scaledColumns[offIndex];
+                    if (totalScaledWidth < targetTableWidth) {
+                        scaledColumns[offIndex] = { ...offCol, width: offCol.width + (targetTableWidth - totalScaledWidth) };
+                    } else if (totalScaledWidth > targetTableWidth) {
+                        const reducible = Math.max(0, offCol.width - minColWidth);
+                        const reduction = Math.min(reducible, totalScaledWidth - targetTableWidth);
+                        scaledColumns[offIndex] = { ...offCol, width: offCol.width - reduction };
+                    }
+                }
+
+                columns = scaledColumns;
 
                 const totalCols = columns.length;
                 const lastColChar = String.fromCharCode(64 + totalCols);
@@ -1186,6 +1202,18 @@
                         });
                     }
                 }
+
+                sheet.pageSetup = {
+                    ...sheet.pageSetup,
+                    fitToPage: true,
+                    fitToWidth: 1,
+                    fitToHeight: 1,
+                    paperSize: 9,
+                    margins: pageMargins,
+                    horizontalCentered: true,
+                    verticalCentered: true,
+                    printArea: `A1:${lastColChar}${sheet.rowCount}`
+                };
 
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
