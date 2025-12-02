@@ -363,13 +363,6 @@
               headerFontWeight: 'bold',
               bodyFontSize: 14,
               bodyFontWeight: 'normal',
-            pageOrientation: 'portrait',
-            fitToWidth: 1,
-            fitToHeight: 1,
-            paperSize: 9,
-            centerHorizontally: true,
-            centerVertically: true,
-            pageMargins: { top: 0, right: 0, bottom: 0, left: 0, header: 0, footer: 0 },
               headerImage: null,
               footerImage: null,
               watermarkImage: null,
@@ -525,24 +518,6 @@
                   sanitized.headerFontSize = Math.max(8, Math.min(48, Number(sanitized.headerFontSize) || 14));
                   sanitized.bodyFontSize = Math.max(8, Math.min(48, Number(sanitized.bodyFontSize) || 14));
                   sanitized.watermarkOpacity = Math.max(0.05, Math.min(1, Number(sanitized.watermarkOpacity ?? DEFAULT_EXCEL_CONFIG.watermarkOpacity) || DEFAULT_EXCEL_CONFIG.watermarkOpacity));
-                sanitized.pageOrientation = 'portrait';
-                sanitized.centerHorizontally = true;
-                sanitized.centerVertically = true;
-                const parseFitValue = (val, fallback) => {
-                    const num = Number(val);
-                    return Number.isFinite(num) && num >= 1 ? num : fallback;
-                };
-                sanitized.fitToWidth = parseFitValue(sanitized.fitToWidth, DEFAULT_EXCEL_CONFIG.fitToWidth);
-                sanitized.fitToHeight = parseFitValue(sanitized.fitToHeight, DEFAULT_EXCEL_CONFIG.fitToHeight);
-                const normalizePaperSize = (val) => {
-                    if (typeof val === 'string' && val.toLowerCase() === 'a4') return 9;
-                    const num = Number(val);
-                    return Number.isFinite(num) && num > 0 ? num : DEFAULT_EXCEL_CONFIG.paperSize;
-                };
-                sanitized.paperSize = normalizePaperSize(sanitized.paperSize);
-                const defaultMargins = DEFAULT_EXCEL_CONFIG.pageMargins;
-                sanitized.pageMargins = { ...defaultMargins };
-
                 sanitized.includeShiftDayNames = sanitized.includeShiftDayNames !== false;
 
                 const allowedLineWeights = ['thin','medium','thick'];
@@ -939,18 +914,6 @@
                     views: [{ rightToLeft: lang === 'ar' }]
                 });
 
-                const pageMargins = excelConfig.pageMargins || DEFAULT_EXCEL_CONFIG.pageMargins;
-                sheet.pageSetup = {
-                    orientation: 'portrait',
-                    horizontalCentered: true,
-                    verticalCentered: true,
-                    fitToPage: true,
-                    fitToWidth: Number(excelConfig.fitToWidth ?? DEFAULT_EXCEL_CONFIG.fitToWidth),
-                    fitToHeight: Number(excelConfig.fitToHeight ?? DEFAULT_EXCEL_CONFIG.fitToHeight),
-                    margins: pageMargins,
-                    paperSize: Number(excelConfig.paperSize ?? DEFAULT_EXCEL_CONFIG.paperSize)
-                };
-
                 const days = getCalculatedDays();
                 const hasTitle = !!excelConfig.officeName;
                 const hasFooter = !!excelConfig.preparedBy;
@@ -965,11 +928,9 @@
                 if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: 35 });
                 columns.push({ header: t('off_col'), key: 'off', width: 35 });
 
-                const desiredTableWidth = 110;
-                const offWidth = Math.max(
-                    35,
-                    desiredTableWidth - columns.filter(c => c.key !== 'off').reduce((sum, c) => sum + (c.width || 0), 0)
-                );
+                const offWidth = 35
+                    + (enabledShifts.nightShift ? 0 : 35)
+                    + (enabledShifts.standby ? 0 : 35);
 
                 const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
                 columns = columns.map(col => {
