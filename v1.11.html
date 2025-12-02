@@ -956,6 +956,7 @@
                 const hasFooter = !!excelConfig.preparedBy;
                 
                 const baseShiftWidth = 35;
+                const totalShiftColumnsIfAllEnabled = 5; // morning, evening, night, standby, off
                 let columns = [
                     { header: t('date_col'), key: 'date', width: 18 },
                     { header: t('day'), key: 'day', width: 12 },
@@ -967,17 +968,18 @@
                 columns.push({ header: t('off_col'), key: 'off', width: baseShiftWidth });
 
                 const activeShiftKeys = ['morning', 'night'];
-                let missingShiftSpace = 0;
-                if (enabledShifts.nightShift) activeShiftKeys.push('nightShift'); else missingShiftSpace += baseShiftWidth;
-                if (enabledShifts.standby) activeShiftKeys.push('standby'); else missingShiftSpace += baseShiftWidth;
+                if (enabledShifts.nightShift) activeShiftKeys.push('nightShift');
+                if (enabledShifts.standby) activeShiftKeys.push('standby');
                 activeShiftKeys.push('off');
 
-                const extraShiftSpace = activeShiftKeys.length ? missingShiftSpace / activeShiftKeys.length : 0;
+                const distributedShiftWidth = activeShiftKeys.length
+                    ? (baseShiftWidth * totalShiftColumnsIfAllEnabled) / activeShiftKeys.length
+                    : baseShiftWidth;
 
                 const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
                 columns = columns.map(col => {
                     const baseWidth = col.width || baseShiftWidth;
-                    const width = activeShiftKeys.includes(col.key) ? baseWidth + extraShiftSpace : baseWidth;
+                    const width = activeShiftKeys.includes(col.key) ? distributedShiftWidth : baseWidth;
                     return hideShiftHeader(col.key) ? { ...col, header: '', width } : { ...col, width };
                 });
 
