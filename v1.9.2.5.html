@@ -873,14 +873,14 @@
                     const niceDate = formatShortDate(day);
                     const s = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
                     
-                    const m = s.morning.map(id => employees.find(e => e.id === id)?.name).join(' & ');
-                    const n = s.night.map(id => employees.find(e => e.id === id)?.name).join(' & ');
-                    const ns = (s.nightShift || []).map(id => employees.find(e => e.id === id)?.name).join(' & ');
-                    const sb = (s.standby || []).map(id => employees.find(e => e.id === id)?.name).join(' & ');
+                    const m = s.morning.map(id => employees.find(e => e.id === id)?.name).join(' / ');
+                    const n = s.night.map(id => employees.find(e => e.id === id)?.name).join(' / ');
+                    const ns = (s.nightShift || []).map(id => employees.find(e => e.id === id)?.name).join(' / ');
+                    const sb = (s.standby || []).map(id => employees.find(e => e.id === id)?.name).join(' / ');
                     
                     let workers = [...s.morning, ...s.night];
                     if(enabledShifts.nightShift) workers = [...workers, ...(s.nightShift || [])];
-                    const off = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' & ');
+                    const off = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' / ');
 
                     let row = `${niceDate},${getDayName(day)},"${m}","${n}"`;
                     if(enabledShifts.nightShift) row += `,"${ns}"`;
@@ -1068,7 +1068,7 @@
                     const getNames = (arr) => (arr || []).map(id => employees.find(e => e.id === id)?.name).join(' / ');
                     let workers = [...s.morning, ...s.night];
                     if(enabledShifts.nightShift) workers = [...workers, ...(s.nightShift || [])];
-                    const offNames = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' & ');
+                    const offNames = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id)).map(e => e.name).join(' / ');
                     
                     const rowData = {};
                     rowData['date'] = niceDate;
