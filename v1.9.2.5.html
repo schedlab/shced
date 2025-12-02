@@ -786,8 +786,9 @@
                     results.push({ label: ranges.join(', '), time });
                 });
                 return results.map(r => {
-                    if (!includeDayNames || !r.label.trim()) return r.time;
-                    return `${r.label} ${r.time}`.trim();
+                    const timeValue = lang === 'ar' ? `\u202B${r.time}\u202C` : r.time;
+                    if (!includeDayNames || !r.label.trim()) return timeValue;
+                    return `${r.label} ${timeValue}`.trim();
                 });
             };
 
@@ -964,8 +965,17 @@
                 if(enabledShifts.standby) columns.push({ header: t('standby_col'), key: 'standby', width: 35 });
                 columns.push({ header: t('off_col'), key: 'off', width: 35 });
 
+                const desiredTableWidth = 110;
+                const offWidth = Math.max(
+                    35,
+                    desiredTableWidth - columns.filter(c => c.key !== 'off').reduce((sum, c) => sum + (c.width || 0), 0)
+                );
+
                 const hideShiftHeader = (key) => ['morning','night','nightShift'].includes(key);
-                columns = columns.map(col => hideShiftHeader(col.key) ? { ...col, header: '' } : col);
+                columns = columns.map(col => {
+                    const width = col.key === 'off' ? offWidth : col.width;
+                    return hideShiftHeader(col.key) ? { ...col, header: '', width } : { ...col, width };
+                });
 
                 const totalCols = columns.length;
                 const lastColChar = String.fromCharCode(64 + totalCols);
