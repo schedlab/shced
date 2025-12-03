@@ -360,9 +360,9 @@
             headerColor: "#db6fab",
             textColor: "#000000",
             headerFontSize: 18,
-              headerFontWeight: 'bold',
+              headerFontWeight: 'extra_bold',
               bodyFontSize: 14,
-              bodyFontWeight: 'normal',
+              bodyFontWeight: 'bold',
             pageOrientation: 'portrait',
             fitToWidth: 1,
             fitToHeight: 1,
@@ -934,12 +934,15 @@
                     return;
                 }
 
+                const isRtl = lang === 'ar';
                 const workbook = new ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet('Schedule', {
-                    views: [{ rightToLeft: lang === 'ar' }]
+                    views: [{ rightToLeft: isRtl }]
                 });
 
-                const pageMargins = excelConfig.pageMargins || DEFAULT_EXCEL_CONFIG.pageMargins;
+                const baseMargins = excelConfig.pageMargins || DEFAULT_EXCEL_CONFIG.pageMargins;
+                const directionalMargins = { top: 0.2, bottom: 0.2, left: isRtl ? 0 : 0.3, right: isRtl ? 0.3 : 0 };
+                const pageMargins = { ...baseMargins, ...directionalMargins };
                 sheet.pageSetup = {
                     orientation: 'portrait',
                     horizontalCentered: true,
@@ -954,7 +957,17 @@
                 const days = getCalculatedDays();
                 const hasTitle = !!excelConfig.officeName;
                 const hasFooter = !!excelConfig.preparedBy;
-                
+                let dateTitle = '';
+                if (scheduleMode === 'month') {
+                    dateTitle = `${TRANSLATIONS[lang].months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+                } else {
+                    const startDate = new Date(rangeStart);
+                    const endDate = new Date(rangeEnd);
+                    if (!isNaN(startDate) && !isNaN(endDate)) {
+                        dateTitle = `${formatShortDate(startDate)} ${t('to')} ${formatShortDate(endDate)}`;
+                    }
+                }
+
                 const baseDateWidth = 18;
                 const baseDayWidth = 12;
                 const baseShiftWidth = 35;
@@ -1052,6 +1065,17 @@
                     currentRow++;
                 }
 
+                if (dateTitle) {
+                    sheet.insertRow(currentRow, {});
+                    sheet.mergeCells(`A${currentRow}:${lastColChar}${currentRow}`);
+                    const dateCell = sheet.getCell(`A${currentRow}`);
+                    dateCell.value = dateTitle;
+                    dateCell.font = { ...defaultFont, bold: true, size: excelConfig.bodyFontSize + 1 };
+                    dateCell.alignment = centerAlign;
+                    sheet.getRow(currentRow).height = 26;
+                    currentRow++;
+                }
+
                 // --- 4. HEADERS (The actual table headers) ---
                 const headerRow = sheet.getRow(currentRow);
 
@@ -1070,7 +1094,8 @@
                     headerRow.getCell(idx + 1).value = val;
                 });
 
-                headerRow.height = showShiftTimes ? 60 : 35;
+                const dataRowHeight = 45;
+                headerRow.height = showShiftTimes ? dataRowHeight * 2 : dataRowHeight;
                 headerRow.eachCell((cell, colNumber) => {
                     cell.font = headerFont;
                     cell.alignment = centerAlign;
@@ -1105,7 +1130,7 @@
                     rowData['off'] = offNames;
 
                     const row = sheet.addRow(rowData);
-                    row.height = 45; 
+                    row.height = dataRowHeight;
                     
                     row.eachCell((cell, colNumber) => {
                         // FIX: Use column key to determine color
