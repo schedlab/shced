@@ -123,6 +123,11 @@
                 to: "to",
                 excel_settings_title: "Excel Customization",
                 excel_settings_desc: "Customize the headers, footers, and images for your Excel export.",
+                excel_section_basics: "Document basics",
+                excel_section_typography: "Typography & colors",
+                excel_section_borders: "Grid & borders",
+                excel_section_media: "Branding images",
+                excel_section_colors: "Cell palette",
                 office_name: "Office/Dept Name (Top)",
                 prepared_by: "Prepared By",
                 header_color: "Header Row Color",
@@ -273,9 +278,14 @@
                 enable_standby: "تفعيل مناوبة الاحتياط",
                 show_times: "إظهار أوقات الورديات في العناوين",
                 to: "إلى",
-                excel_settings_title: "تخصيص ملف الإكسل",
-                excel_settings_desc: "تخصيص العناوين، التذييل، والصور لملف التصدير.",
-                office_name: "اسم المكتب/القسم",
+                  excel_settings_title: "تخصيص ملف الإكسل",
+                  excel_settings_desc: "تخصيص العناوين، التذييل، والصور لملف التصدير.",
+                  excel_section_basics: "إعدادات الوثيقة",
+                  excel_section_typography: "تنسيق النص والألوان",
+                  excel_section_borders: "الشبكة والحدود",
+                  excel_section_media: "صور الهوية",
+                  excel_section_colors: "لوحة الألوان",
+                  office_name: "اسم المكتب/القسم",
                 prepared_by: "إعداد",
                 header_color: "لون صف العناوين",
                 header_text_color: "نص الترويسة",
@@ -360,9 +370,9 @@
             headerColor: "#db6fab",
             textColor: "#000000",
             headerFontSize: 18,
-              headerFontWeight: 'bold',
+              headerFontWeight: 'extra_bold',
               bodyFontSize: 14,
-              bodyFontWeight: 'normal',
+              bodyFontWeight: 'bold',
             pageOrientation: 'portrait',
             fitToWidth: 1,
             fitToHeight: 1,
@@ -934,12 +944,15 @@
                     return;
                 }
 
+                const isRtl = lang === 'ar';
                 const workbook = new ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet('Schedule', {
-                    views: [{ rightToLeft: lang === 'ar' }]
+                    views: [{ rightToLeft: isRtl }]
                 });
 
-                const pageMargins = excelConfig.pageMargins || DEFAULT_EXCEL_CONFIG.pageMargins;
+                const baseMargins = excelConfig.pageMargins || DEFAULT_EXCEL_CONFIG.pageMargins;
+                const directionalMargins = { top: 0.2, bottom: 0.2, left: isRtl ? 0 : 0.3, right: isRtl ? 0.3 : 0 };
+                const pageMargins = { ...baseMargins, ...directionalMargins };
                 sheet.pageSetup = {
                     orientation: 'portrait',
                     horizontalCentered: true,
@@ -954,7 +967,17 @@
                 const days = getCalculatedDays();
                 const hasTitle = !!excelConfig.officeName;
                 const hasFooter = !!excelConfig.preparedBy;
-                
+                let dateTitle = '';
+                if (scheduleMode === 'month') {
+                    dateTitle = `${TRANSLATIONS[lang].months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+                } else {
+                    const startDate = new Date(rangeStart);
+                    const endDate = new Date(rangeEnd);
+                    if (!isNaN(startDate) && !isNaN(endDate)) {
+                        dateTitle = `${formatShortDate(startDate)} ${t('to')} ${formatShortDate(endDate)}`;
+                    }
+                }
+
                 const baseDateWidth = 18;
                 const baseDayWidth = 12;
                 const baseShiftWidth = 35;
@@ -1052,6 +1075,17 @@
                     currentRow++;
                 }
 
+                if (dateTitle) {
+                    sheet.insertRow(currentRow, {});
+                    sheet.mergeCells(`A${currentRow}:${lastColChar}${currentRow}`);
+                    const dateCell = sheet.getCell(`A${currentRow}`);
+                    dateCell.value = dateTitle;
+                    dateCell.font = { ...defaultFont, bold: true, size: excelConfig.bodyFontSize + 1 };
+                    dateCell.alignment = centerAlign;
+                    sheet.getRow(currentRow).height = 26;
+                    currentRow++;
+                }
+
                 // --- 4. HEADERS (The actual table headers) ---
                 const headerRow = sheet.getRow(currentRow);
 
@@ -1070,7 +1104,8 @@
                     headerRow.getCell(idx + 1).value = val;
                 });
 
-                headerRow.height = showShiftTimes ? 60 : 35;
+                const dataRowHeight = 45;
+                headerRow.height = showShiftTimes ? dataRowHeight * 2 : dataRowHeight;
                 headerRow.eachCell((cell, colNumber) => {
                     cell.font = headerFont;
                     cell.alignment = centerAlign;
@@ -1105,7 +1140,7 @@
                     rowData['off'] = offNames;
 
                     const row = sheet.addRow(rowData);
-                    row.height = 45; 
+                    row.height = dataRowHeight;
                     
                     row.eachCell((cell, colNumber) => {
                         // FIX: Use column key to determine color
@@ -1440,9 +1475,12 @@
                                         borderLeft: `${linePx} solid ${lineColor}`,
                                         borderRight: `${linePx} solid ${lineColor}`
                                     }}>
-                                        {previewColumns.map(col => (
-                                            <div key={col.key} style={{ backgroundColor: 'transparent' }}>{col.label}</div>
-                                        ))}
+                                        {previewColumns.map((col, idx) => {
+                                            const sampleLabel = idx === 0 ? (col.label || '') : '';
+                                            return (
+                                                <div key={col.key} style={{ backgroundColor: 'transparent' }}>{sampleLabel}</div>
+                                            );
+                                        })}
                                     </div>
                                     {[1,2,3].map(i => (
                                         <div key={i} className="grid text-xs p-0 text-center" style={{
@@ -1994,269 +2032,279 @@
                                         <p>{t('excel_settings_desc')}</p>
                                     </div>
 
-                                    <div className="w-full flex flex-col lg:flex-row gap-8 items-start">
-                                        <div className="w-full lg:w-1/2 bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-6">
+                                      <div className="w-full flex flex-col lg:flex-row gap-8 items-start">
+                                          <div className="w-full lg:w-1/2 bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-6">
+                                              <div className="flex justify-between items-center">
+                                                  <div className="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                                      <span className="px-2 py-1 rounded bg-slate-100">{t('excel_section_basics')}</span>
+                                                      <span className="px-2 py-1 rounded bg-slate-100">{t('excel_section_typography')}</span>
+                                                      <span className="px-2 py-1 rounded bg-slate-100">{t('excel_section_media')}</span>
+                                                  </div>
+                                                  <button onClick={resetExcelStyles} className="text-xs text-blue-600 hover:text-blue-800 underline">{t('reset_excel_styles')}</button>
+                                              </div>
 
-                                            <div className="flex justify-end">
-                                                <button onClick={resetExcelStyles} className="text-xs text-blue-600 hover:text-blue-800 underline">{t('reset_excel_styles')}</button>
-                                            </div>
+                                              <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 space-y-4">
+                                                  <div className="text-[11px] font-semibold uppercase text-slate-500 tracking-wide">{t('excel_section_basics')}</div>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('office_name')}</label>
+                                                          <input type="text" className="w-full border p-2 rounded text-slate-700" value={excelConfig.officeName} onChange={e=>setExcelConfig({...excelConfig, officeName: e.target.value})} />
+                                                      </div>
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('prepared_by')}</label>
+                                                          <input type="text" className="w-full border p-2 rounded text-slate-700" value={excelConfig.preparedBy} onChange={e=>setExcelConfig({...excelConfig, preparedBy: e.target.value})} />
+                                                      </div>
+                                                  </div>
+                                                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded p-3">
+                                                      <input
+                                                          type="checkbox"
+                                                          className="w-4 h-4 text-blue-600 rounded"
+                                                          checked={excelConfig.includeShiftDayNames !== false}
+                                                          onChange={e=>setExcelConfig({...excelConfig, includeShiftDayNames: e.target.checked})}
+                                                      />
+                                                      <span className="text-sm font-medium text-slate-700">{t('include_day_names')}</span>
+                                                  </div>
+                                              </div>
 
-                                            <div className="grid grid-cols-1 gap-4">
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('office_name')}</label>
-                                                    <input type="text" className="w-full border p-2 rounded text-slate-700" value={excelConfig.officeName} onChange={e=>setExcelConfig({...excelConfig, officeName: e.target.value})} />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('prepared_by')}</label>
-                                                    <input type="text" className="w-full border p-2 rounded text-slate-700" value={excelConfig.preparedBy} onChange={e=>setExcelConfig({...excelConfig, preparedBy: e.target.value})} />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_text_color')}</label>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.headerColor} onChange={e=>setExcelConfig({...excelConfig, headerColor: e.target.value})}/>
-                                                        <span className="text-xs text-slate-500">{t('header_text_color')}</span>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_color')}</label>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.textColor} onChange={e=>setExcelConfig({...excelConfig, textColor: e.target.value})}/>
-                                                        <span className="text-xs text-slate-500">{t('text_color')}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_header')} ({excelConfig.headerFontSize}px)</label>
-                                                    <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.headerFontSize} onChange={e=>setExcelConfig({...excelConfig, headerFontSize: +e.target.value})} />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_body')} ({excelConfig.bodyFontSize}px)</label>
-                                                    <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.bodyFontSize} onChange={e=>setExcelConfig({...excelConfig, bodyFontSize: +e.target.value})} />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_weight')}</label>
-                                                      <select value={excelConfig.headerFontWeight} onChange={e=>setExcelConfig({...excelConfig, headerFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
-                                                          <option value="thin">{t('weight_thin')}</option>
-                                                          <option value="extra_light">{t('weight_extra_light')}</option>
-                                                          <option value="light">{t('weight_light')}</option>
-                                                          <option value="normal">{t('weight_normal')}</option>
-                                                          <option value="medium">{t('weight_medium')}</option>
-                                                          <option value="semibold">{t('weight_semibold')}</option>
-                                                          <option value="bold">{t('weight_bold')}</option>
-                                                          <option value="extra_bold">{t('weight_extra_bold')}</option>
-                                                          <option value="black">{t('weight_black')}</option>
-                                                      </select>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('body_weight')}</label>
-                                                      <select value={excelConfig.bodyFontWeight} onChange={e=>setExcelConfig({...excelConfig, bodyFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
-                                                          <option value="thin">{t('weight_thin')}</option>
-                                                          <option value="extra_light">{t('weight_extra_light')}</option>
-                                                          <option value="light">{t('weight_light')}</option>
-                                                          <option value="normal">{t('weight_normal')}</option>
-                                                          <option value="medium">{t('weight_medium')}</option>
-                                                          <option value="semibold">{t('weight_semibold')}</option>
-                                                          <option value="bold">{t('weight_bold')}</option>
-                                                          <option value="extra_bold">{t('weight_extra_bold')}</option>
-                                                          <option value="black">{t('weight_black')}</option>
-                                                      </select>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2 bg-slate-50 p-3 rounded border border-slate-200">
-                                                <input
-                                                    type="checkbox"
-                                                    className="w-4 h-4 text-blue-600 rounded"
-                                                    checked={excelConfig.includeShiftDayNames !== false}
-                                                    onChange={e=>setExcelConfig({...excelConfig, includeShiftDayNames: e.target.checked})}
-                                                />
-                                                <span className="text-sm font-medium text-slate-700">{t('include_day_names')}</span>
-                                            </div>
-
-                                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase">{t('excel_border_settings')}</label>
-                                                </div>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                                    <div>
-                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_top')}</span>
-                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.top || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, top: e.target.value}})}>
-                                                            <option value="thin">{t('thin')}</option>
-                                                            <option value="medium">{t('medium')}</option>
-                                                            <option value="thick">{t('thick')}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_right')}</span>
-                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.right || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, right: e.target.value}})}>
-                                                            <option value="thin">{t('thin')}</option>
-                                                            <option value="medium">{t('medium')}</option>
-                                                            <option value="thick">{t('thick')}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_bottom')}</span>
-                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.bottom || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, bottom: e.target.value}})}>
-                                                            <option value="thin">{t('thin')}</option>
-                                                            <option value="medium">{t('medium')}</option>
-                                                            <option value="thick">{t('thick')}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_left')}</span>
-                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.left || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, left: e.target.value}})}>
-                                                            <option value="thin">{t('thin')}</option>
-                                                            <option value="medium">{t('medium')}</option>
-                                                            <option value="thick">{t('thick')}</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_weight')}</label>
-                                                        <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.lineWeight} onChange={e=>setExcelConfig({...excelConfig, lineWeight: e.target.value})}>
-                                                            <option value="thin">{t('thin')}</option>
-                                                            <option value="medium">{t('medium')}</option>
-                                                            <option value="thick">{t('thick')}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_color')}</label>
-                                                        <input type="color" className="w-full h-10 border border-slate-300 rounded" value={excelConfig.lineColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, lineColor: e.target.value})}/>
-                                                    </div>
-                                                    <div className="md:col-span-2 flex items-center gap-3">
-                                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1">{t('frame_color')}</label>
-                                                        <input type="color" className="w-16 h-9 border border-slate-300 rounded" value={excelConfig.frameColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, frameColor: e.target.value})}/>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <hr className="border-slate-100"/>
-                                            <div>
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase">{t('header_image')}</label>
-                                                    {excelConfig.headerImage && <button onClick={()=>setExcelConfig({...excelConfig, headerImage: null})} className="text-xs text-red-500 hover:text-red-700 underline">{t('remove_image')}</button>}
-                                                </div>
-                                                <div className="flex gap-4 items-start">
-                                                    <div onClick={()=>headerImgRef.current.click()} className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded hover:bg-slate-100 cursor-pointer flex items-center justify-center overflow-hidden">
-                                                        {excelConfig.headerImage ? <img src={excelConfig.headerImage} className="w-full h-full object-cover" /> : <Image size={24} className="text-slate-300"/>}
-                                                    </div>
-                                                    <div className="flex-1 space-y-2">
-                                                        <input type="file" ref={headerImgRef} className="hidden" accept="image/*" onChange={handleHeaderImageUpload}/>
-                                                        <button onClick={()=>headerImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
-                                                            <select value={excelConfig.headerEffect} onChange={e=>setExcelConfig({...excelConfig, headerEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                <option value="none">{t('ef_none')}</option>
-                                                                <option value="grayscale">{t('ef_gray')}</option>
-                                                                <option value="washout">{t('ef_wash')}</option>
-                                                                <option value="washout_grayscale">{t('ef_wash_gray')}</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <hr className="border-slate-100"/>
-                                            {/* NEW: Footer Image Section */}
-                                            <div>
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase">{t('footer_image')}</label>
-                                                    {excelConfig.footerImage && <button onClick={()=>setExcelConfig({...excelConfig, footerImage: null})} className="text-xs text-red-500 hover:text-red-700 underline">{t('remove_image')}</button>}
-                                                </div>
-                                                <div className="flex gap-4 items-start">
-                                                    <div onClick={()=>footerImgRef.current.click()} className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded hover:bg-slate-100 cursor-pointer flex items-center justify-center overflow-hidden">
-                                                        {excelConfig.footerImage ? <img src={excelConfig.footerImage} className="w-full h-full object-cover" /> : <Image size={24} className="text-slate-300"/>}
-                                                    </div>
-                                                    <div className="flex-1 space-y-2">
-                                                        <input type="file" ref={footerImgRef} className="hidden" accept="image/*" onChange={handleFooterImageUpload}/>
-                                                        <button onClick={()=>footerImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
-                                                            <select value={excelConfig.footerEffect} onChange={e=>setExcelConfig({...excelConfig, footerEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                <option value="none">{t('ef_none')}</option>
-                                                                <option value="grayscale">{t('ef_gray')}</option>
-                                                                <option value="washout">{t('ef_wash')}</option>
-                                                                <option value="washout_grayscale">{t('ef_wash_gray')}</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <hr className="border-slate-100"/>
-                                            <div>
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase">{t('watermark_image')}</label>
-                                                    {excelConfig.watermarkImage && <button onClick={()=>setExcelConfig({...excelConfig, watermarkImage: null})} className="text-xs text-red-500 hover:text-red-700 underline">{t('remove_image')}</button>}
-                                                </div>
-                                                <div className="flex gap-4 items-start">
-                                                    <div onClick={()=>watermarkImgRef.current.click()} className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded hover:bg-slate-100 cursor-pointer flex items-center justify-center overflow-hidden">
-                                                        {excelConfig.watermarkImage ? <img src={excelConfig.watermarkImage} className="w-full h-full object-cover" /> : <Shield size={24} className="text-slate-300"/>}
-                                                    </div>
-                                                    <div className="flex-1 space-y-2">
-                                                        <input type="file" ref={watermarkImgRef} className="hidden" accept="image/*" onChange={handleWatermarkImageUpload}/>
-                                                        <button onClick={()=>watermarkImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
-                                                          <div>
-                                                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
-                                                              <select value={excelConfig.watermarkEffect} onChange={e=>setExcelConfig({...excelConfig, watermarkEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
-                                                                  <option value="washout">{t('ef_wash')}</option>
-                                                                  <option value="washout_grayscale">{t('ef_wash_gray')}</option>
-                                                              </select>
+                                              <div className="bg-white border border-slate-100 rounded-lg p-4 space-y-4">
+                                                  <div className="text-[11px] font-semibold uppercase text-slate-500 tracking-wide">{t('excel_section_typography')}</div>
+                                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_header')} ({excelConfig.headerFontSize}px)</label>
+                                                          <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.headerFontSize} onChange={e=>setExcelConfig({...excelConfig, headerFontSize: +e.target.value})}/>
+                                                      </div>
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('font_size_body')} ({excelConfig.bodyFontSize}px)</label>
+                                                          <input type="range" min="8" max="48" step="1" className="w-full accent-blue-600" value={excelConfig.bodyFontSize} onChange={e=>setExcelConfig({...excelConfig, bodyFontSize: +e.target.value})} />
+                                                      </div>
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_weight')}</label>
+                                                          <select value={excelConfig.headerFontWeight} onChange={e=>setExcelConfig({...excelConfig, headerFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                              <option value="thin">{t('weight_thin')}</option>
+                                                              <option value="extra_light">{t('weight_extra_light')}</option>
+                                                              <option value="light">{t('weight_light')}</option>
+                                                              <option value="normal">{t('weight_normal')}</option>
+                                                              <option value="medium">{t('weight_medium')}</option>
+                                                              <option value="semibold">{t('weight_semibold')}</option>
+                                                              <option value="bold">{t('weight_bold')}</option>
+                                                              <option value="extra_bold">{t('weight_extra_bold')}</option>
+                                                              <option value="black">{t('weight_black')}</option>
+                                                          </select>
+                                                      </div>
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('body_weight')}</label>
+                                                          <select value={excelConfig.bodyFontWeight} onChange={e=>setExcelConfig({...excelConfig, bodyFontWeight: e.target.value})} className="w-full text-xs p-2 border rounded">
+                                                              <option value="thin">{t('weight_thin')}</option>
+                                                              <option value="extra_light">{t('weight_extra_light')}</option>
+                                                              <option value="light">{t('weight_light')}</option>
+                                                              <option value="normal">{t('weight_normal')}</option>
+                                                              <option value="medium">{t('weight_medium')}</option>
+                                                              <option value="semibold">{t('weight_semibold')}</option>
+                                                              <option value="bold">{t('weight_bold')}</option>
+                                                              <option value="extra_bold">{t('weight_extra_bold')}</option>
+                                                              <option value="black">{t('weight_black')}</option>
+                                                          </select>
+                                                      </div>
+                                                  </div>
+                                                  <div className="grid grid-cols-2 gap-4">
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('header_text_color')}</label>
+                                                          <div className="flex items-center gap-2">
+                                                              <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.headerColor} onChange={e=>setExcelConfig({...excelConfig, headerColor: e.target.value})}/>
+                                                              <span className="text-xs text-slate-500">{t('header_text_color')}</span>
                                                           </div>
-                                                          <div>
-                                                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('watermark_opacity')} ({Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)}%)</label>
-                                                              <input type="range" min="5" max="100" step="5" className="w-full accent-blue-600" value={Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)} onChange={e=>setExcelConfig({...excelConfig, watermarkOpacity: Math.round(+e.target.value)/100})} />
+                                                      </div>
+                                                      <div>
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('text_color')}</label>
+                                                          <div className="flex items-center gap-2">
+                                                              <input type="color" className="h-10 w-10 cursor-pointer border rounded" value={excelConfig.textColor} onChange={e=>setExcelConfig({...excelConfig, textColor: e.target.value})}/>
+                                                              <span className="text-xs text-slate-500">{t('text_color')}</span>
                                                           </div>
-                                                          <span className="text-[10px] text-slate-400">{t('watermark_hint')}</span>
                                                       </div>
                                                   </div>
                                               </div>
-                                            <hr className="border-slate-100"/>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t('cell_colors')}</label>
-                                                <div className="grid grid-cols-2 gap-4 mb-3 p-3 bg-slate-50 rounded border border-slate-100">
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-8 w-8 cursor-pointer border rounded" value={excelConfig.headerRowColor} onChange={e=>setExcelConfig({...excelConfig, headerRowColor: e.target.value})}/>
-                                                        <span className="text-xs font-bold text-slate-700">{t('header_row_color')}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-8 w-8 cursor-pointer border rounded" value={excelConfig.dateColumnColor} onChange={e=>setExcelConfig({...excelConfig, dateColumnColor: e.target.value})}/>
-                                                        <span className="text-xs font-bold text-slate-700">{t('date_col_color')}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-3 gap-x-2 gap-y-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.mornCellColor} onChange={e=>setExcelConfig({...excelConfig, mornCellColor: e.target.value})}/>
-                                                        <span className="text-xs font-medium text-slate-600">{t('morn_cell_color')}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.eveCellColor} onChange={e=>setExcelConfig({...excelConfig, eveCellColor: e.target.value})}/>
-                                                        <span className="text-xs font-medium text-slate-600">{t('eve_cell_color')}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.nightCellColor} onChange={e=>setExcelConfig({...excelConfig, nightCellColor: e.target.value})}/>
-                                                        <span className="text-xs font-medium text-slate-600">{t('night_cell_color')}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.standbyCellColor} onChange={e=>setExcelConfig({...excelConfig, standbyCellColor: e.target.value})}/>
-                                                        <span className="text-xs font-medium text-slate-600">{t('standby_cell_color')}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.offCellColor} onChange={e=>setExcelConfig({...excelConfig, offCellColor: e.target.value})}/>
-                                                        <span className="text-xs font-medium text-slate-600">{t('off_cell_color')}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="w-full lg:w-1/2 flex flex-col items-center">
-                                            <div className="mb-2 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('preview_mode')}</div>
-                                            <PreviewSection />
-                                        </div>
-                                    </div>
+                                              <div className="bg-white border border-slate-100 rounded-lg p-4 space-y-4">
+                                                  <div className="text-[11px] font-semibold uppercase text-slate-500 tracking-wide">{t('excel_section_borders')}</div>
+                                                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+                                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                          <div>
+                                                              <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_top')}</span>
+                                                              <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.top || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, top: e.target.value}})}>
+                                                                  <option value="thin">{t('thin')}</option>
+                                                                  <option value="medium">{t('medium')}</option>
+                                                                  <option value="thick">{t('thick')}</option>
+                                                              </select>
+                                                          </div>
+                                                          <div>
+                                                              <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_right')}</span>
+                                                              <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.right || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, right: e.target.value}})}>
+                                                                  <option value="thin">{t('thin')}</option>
+                                                                  <option value="medium">{t('medium')}</option>
+                                                                  <option value="thick">{t('thick')}</option>
+                                                              </select>
+                                                          </div>
+                                                          <div>
+                                                              <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_bottom')}</span>
+                                                              <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.bottom || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, bottom: e.target.value}})}>
+                                                                  <option value="thin">{t('thin')}</option>
+                                                                  <option value="medium">{t('medium')}</option>
+                                                                  <option value="thick">{t('thick')}</option>
+                                                              </select>
+                                                          </div>
+                                                          <div>
+                                                              <span className="block text-[10px] font-semibold uppercase text-slate-500">{t('border_left')}</span>
+                                                              <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.frameBorders?.left || 'thin'} onChange={e=>setExcelConfig({...excelConfig, frameBorders: {...excelConfig.frameBorders, left: e.target.value}})}>
+                                                                  <option value="thin">{t('thin')}</option>
+                                                                  <option value="medium">{t('medium')}</option>
+                                                                  <option value="thick">{t('thick')}</option>
+                                                              </select>
+                                                          </div>
+                                                      </div>
+                                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                          <div>
+                                                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_weight')}</label>
+                                                              <select className="w-full p-2 border border-slate-300 rounded text-sm" value={excelConfig.lineWeight} onChange={e=>setExcelConfig({...excelConfig, lineWeight: e.target.value})}>
+                                                                  <option value="thin">{t('thin')}</option>
+                                                                  <option value="medium">{t('medium')}</option>
+                                                                  <option value="thick">{t('thick')}</option>
+                                                              </select>
+                                                          </div>
+                                                          <div>
+                                                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('line_color')}</label>
+                                                              <input type="color" className="w-full h-10 border border-slate-300 rounded" value={excelConfig.lineColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, lineColor: e.target.value})}/>
+                                                          </div>
+                                                          <div className="md:col-span-2 flex items-center gap-3">
+                                                              <label className="text-xs font-bold text-slate-500 uppercase mb-1">{t('frame_color')}</label>
+                                                              <input type="color" className="w-16 h-9 border border-slate-300 rounded" value={excelConfig.frameColor || '#e2e8f0'} onChange={e=>setExcelConfig({...excelConfig, frameColor: e.target.value})}/>
+                                                          </div>
+                                                      </div>
+                                                  </div>
+                                              </div>
+
+                                              <div className="bg-white border border-slate-100 rounded-lg p-4 space-y-6">
+                                                  <div className="text-[11px] font-semibold uppercase text-slate-500 tracking-wide">{t('excel_section_media')}</div>
+                                                  <div>
+                                                      <div className="flex justify-between items-center mb-2">
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase">{t('header_image')}</label>
+                                                          {excelConfig.headerImage && <button onClick={()=>setExcelConfig({...excelConfig, headerImage: null})} className="text-xs text-red-500 hover:text-red-700 underline">{t('remove_image')}</button>}
+                                                      </div>
+                                                      <div className="flex gap-4 items-start">
+                                                          <div onClick={()=>headerImgRef.current.click()} className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded hover:bg-slate-100 cursor-pointer flex items-center justify-center overflow-hidden">
+                                                              {excelConfig.headerImage ? <img src={excelConfig.headerImage} className="w-full h-full object-cover" /> : <Image size={24} className="text-slate-300"/>}
+                                                          </div>
+                                                          <div className="flex-1 space-y-2">
+                                                              <input type="file" ref={headerImgRef} className="hidden" accept="image/*" onChange={handleHeaderImageUpload}/>
+                                                              <button onClick={()=>headerImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
+                                                              <div>
+                                                                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
+                                                                  <select value={excelConfig.headerEffect} onChange={e=>setExcelConfig({...excelConfig, headerEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
+                                                                      <option value="none">{t('ef_none')}</option>
+                                                                      <option value="grayscale">{t('ef_gray')}</option>
+                                                                      <option value="washout">{t('ef_wash')}</option>
+                                                                      <option value="washout_grayscale">{t('ef_wash_gray')}</option>
+                                                                  </select>
+                                                              </div>
+                                                          </div>
+                                                      </div>
+                                                  </div>
+
+                                                  <div>
+                                                      <div className="flex justify-between items-center mb-2">
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase">{t('footer_image')}</label>
+                                                          {excelConfig.footerImage && <button onClick={()=>setExcelConfig({...excelConfig, footerImage: null})} className="text-xs text-red-500 hover:text-red-700 underline">{t('remove_image')}</button>}
+                                                      </div>
+                                                      <div className="flex gap-4 items-start">
+                                                          <div onClick={()=>footerImgRef.current.click()} className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded hover:bg-slate-100 cursor-pointer flex items-center justify-center overflow-hidden">
+                                                              {excelConfig.footerImage ? <img src={excelConfig.footerImage} className="w-full h-full object-cover" /> : <Image size={24} className="text-slate-300"/>}
+                                                          </div>
+                                                          <div className="flex-1 space-y-2">
+                                                              <input type="file" ref={footerImgRef} className="hidden" accept="image/*" onChange={handleFooterImageUpload}/>
+                                                              <button onClick={()=>footerImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
+                                                              <div>
+                                                                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
+                                                                  <select value={excelConfig.footerEffect} onChange={e=>setExcelConfig({...excelConfig, footerEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
+                                                                      <option value="none">{t('ef_none')}</option>
+                                                                      <option value="grayscale">{t('ef_gray')}</option>
+                                                                      <option value="washout">{t('ef_wash')}</option>
+                                                                      <option value="washout_grayscale">{t('ef_wash_gray')}</option>
+                                                                  </select>
+                                                              </div>
+                                                          </div>
+                                                      </div>
+                                                  </div>
+
+                                                  <div>
+                                                      <div className="flex justify-between items-center mb-2">
+                                                          <label className="block text-xs font-bold text-slate-500 uppercase">{t('watermark_image')}</label>
+                                                          {excelConfig.watermarkImage && <button onClick={()=>setExcelConfig({...excelConfig, watermarkImage: null})} className="text-xs text-red-500 hover:text-red-700 underline">{t('remove_image')}</button>}
+                                                      </div>
+                                                      <div className="flex gap-4 items-start">
+                                                          <div onClick={()=>watermarkImgRef.current.click()} className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded hover:bg-slate-100 cursor-pointer flex items-center justify-center overflow-hidden">
+                                                              {excelConfig.watermarkImage ? <img src={excelConfig.watermarkImage} className="w-full h-full object-cover" /> : <Shield size={24} className="text-slate-300"/>}
+                                                          </div>
+                                                          <div className="flex-1 space-y-2">
+                                                              <input type="file" ref={watermarkImgRef} className="hidden" accept="image/*" onChange={handleWatermarkImageUpload}/>
+                                                              <button onClick={()=>watermarkImgRef.current.click()} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded">{t('upload_image')}</button>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('effect')}</label>
+                                                                    <select value={excelConfig.watermarkEffect} onChange={e=>setExcelConfig({...excelConfig, watermarkEffect: e.target.value})} className="w-full text-xs p-1 border rounded">
+                                                                        <option value="washout">{t('ef_wash')}</option>
+                                                                        <option value="washout_grayscale">{t('ef_wash_gray')}</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('watermark_opacity')} ({Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)}%)</label>
+                                                                    <input type="range" min="5" max="100" step="5" className="w-full accent-blue-600" value={Math.round((excelConfig.watermarkOpacity ?? 0.35) * 100)} onChange={e=>setExcelConfig({...excelConfig, watermarkOpacity: Math.round(+e.target.value)/100})} />
+                                                                </div>
+                                                                <span className="text-[10px] text-slate-400">{t('watermark_hint')}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                              </div>
+
+                                              <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 space-y-3">
+                                                  <div className="text-[11px] font-semibold uppercase text-slate-500 tracking-wide">{t('excel_section_colors')}</div>
+                                                  <div className="grid grid-cols-2 gap-4 mb-3 p-3 bg-white rounded border border-slate-100">
+                                                      <div className="flex items-center gap-2">
+                                                          <input type="color" className="h-8 w-8 cursor-pointer border rounded" value={excelConfig.headerRowColor} onChange={e=>setExcelConfig({...excelConfig, headerRowColor: e.target.value})}/>
+                                                          <span className="text-xs font-bold text-slate-700">{t('header_row_color')}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <input type="color" className="h-8 w-8 cursor-pointer border rounded" value={excelConfig.dateColumnColor} onChange={e=>setExcelConfig({...excelConfig, dateColumnColor: e.target.value})}/>
+                                                          <span className="text-xs font-bold text-slate-700">{t('date_col_color')}</span>
+                                                      </div>
+                                                  </div>
+                                                  <div className="grid grid-cols-3 gap-x-2 gap-y-3">
+                                                      <div className="flex items-center gap-2">
+                                                          <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.mornCellColor} onChange={e=>setExcelConfig({...excelConfig, mornCellColor: e.target.value})}/>
+                                                          <span className="text-xs font-medium text-slate-600">{t('morn_cell_color')}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.eveCellColor} onChange={e=>setExcelConfig({...excelConfig, eveCellColor: e.target.value})}/>
+                                                          <span className="text-xs font-medium text-slate-600">{t('eve_cell_color')}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.nightCellColor} onChange={e=>setExcelConfig({...excelConfig, nightCellColor: e.target.value})}/>
+                                                          <span className="text-xs font-medium text-slate-600">{t('night_cell_color')}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.standbyCellColor} onChange={e=>setExcelConfig({...excelConfig, standbyCellColor: e.target.value})}/>
+                                                          <span className="text-xs font-medium text-slate-600">{t('standby_cell_color')}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <input type="color" className="h-6 w-6 cursor-pointer border rounded" value={excelConfig.offCellColor} onChange={e=>setExcelConfig({...excelConfig, offCellColor: e.target.value})}/>
+                                                          <span className="text-xs font-medium text-slate-600">{t('off_cell_color')}</span>
+                                                      </div>
+                                                  </div>
+                                              </div>
+                                          </div>
+
+                                          <div className="w-full lg:w-1/2 flex flex-col items-center">
+                                              <div className="mb-2 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('preview_mode')}</div>
+                                              <PreviewSection />
+                                          </div>
+                                      </div>
                                 </div>
                             )}
 
