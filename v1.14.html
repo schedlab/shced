@@ -15,15 +15,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script>
         window.ilpSolverReady = (async () => {
-            const ensureScriptLoaded = () => new Promise((resolve) => {
-                if (window.GLPK || window.glpk) return resolve();
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/dist/glpk.min.js';
-                script.onload = () => resolve();
-                script.onerror = () => resolve();
-                document.head.appendChild(script);
-            });
-            await ensureScriptLoaded();
+            const candidateSources = [
+                'https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/dist/glpk.min.js',
+                'https://unpkg.com/glpk.js@4.0.2/dist/glpk.min.js',
+            ];
+
+            const tryLoadSequentially = async () => {
+                for (const src of candidateSources) {
+                    if (window.GLPK || window.glpk) return true;
+                    // eslint-disable-next-line no-await-in-loop
+                    const loaded = await new Promise((resolve) => {
+                        const script = document.createElement('script');
+                        script.src = src;
+                        script.async = true;
+                        script.onload = () => resolve(true);
+                        script.onerror = () => resolve(false);
+                        document.head.appendChild(script);
+                    });
+                    if (loaded) return true;
+                }
+                return false;
+            };
+
+            await tryLoadSequentially();
             try {
                 const factory = window.GLPK || window.glpk;
                 if (!factory) return null;
