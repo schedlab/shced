@@ -21,8 +21,29 @@
             ];
 
             const tryLoadSequentially = async () => {
+                const previousModule = window.module;
+                const hadModule = Object.prototype.hasOwnProperty.call(window, 'module');
+                const applyModuleShim = () => {
+                    if (!hadModule && typeof window.module === 'undefined') {
+                        window.module = { exports: {} };
+                    }
+                };
+                const restoreModule = () => {
+                    if (!hadModule) {
+                        delete window.module;
+                    } else {
+                        window.module = previousModule;
+                    }
+                };
+                const hasFactory = () => Boolean(
+                    window.GLPK ||
+                    window.glpk ||
+                    (window.module && window.module.exports && (window.module.exports.GLPK || window.module.exports.glpk || window.module.exports))
+                );
+
                 for (const src of candidateSources) {
-                    if (window.GLPK || window.glpk) return true;
+                    if (hasFactory()) return true;
+                    applyModuleShim();
                     // eslint-disable-next-line no-await-in-loop
                     const loaded = await new Promise((resolve) => {
                         const script = document.createElement('script');
@@ -32,14 +53,20 @@
                         script.onerror = () => resolve(false);
                         document.head.appendChild(script);
                     });
-                    if (loaded) return true;
+                    const moduleExports = window.module && window.module.exports ? (window.module.exports.GLPK || window.module.exports.glpk || window.module.exports) : null;
+                    if (moduleExports && !window.GLPK && !window.glpk) {
+                        window.glpk = moduleExports;
+                    }
+                    const available = hasFactory();
+                    restoreModule();
+                    if (loaded && available) return true;
                 }
                 return false;
             };
 
             await tryLoadSequentially();
             try {
-                const factory = window.GLPK || window.glpk;
+                const factory = window.GLPK || window.glpk || (window.module && window.module.exports && (window.module.exports.GLPK || window.module.exports.glpk || window.module.exports));
                 if (!factory) return null;
                 if (typeof factory === 'function') {
                     return await factory();
