@@ -88,7 +88,8 @@
                 set_avail: "Set All Available",
                 set_unavail: "Set All Unavailable",
                 set_morn: "Set All Morning Only",
-                set_eve: "Set All Evening Only",
+                set_night: "Set All Night Only",
+                set_standby: "Set All Standby Only",
                 set_sun: "Prioritize Sundays",
                 set_mon: "Prioritize Mondays",
                 set_tue: "Prioritize Tuesdays",
@@ -98,7 +99,8 @@
                 set_sat: "Prioritize Saturdays",
                 opt_unavail: "Unavail",
                 opt_morn: "Morn Only",
-                opt_eve: "Eve Only",
+                opt_night: "Night Only",
+                opt_standby: "Standby Only",
                 opt_priority: "! Priority !",
                 manage_staff: "Manage Staff list and Shift Rules in this tab.",
                 add_staff: "Add Staff",
@@ -196,7 +198,8 @@
                 rule_single_shift: "Each person can take only one work or standby assignment per day.",
                 rule_unavailable: "Unavailable days will never be assigned.",
                 rule_morning_only: "Morning-only keeps them off evening or night shifts.",
-                rule_night_only: "Evening-only keeps them off morning shifts.",
+                rule_night_only: "Night-only keeps them off morning shifts.",
+                rule_standby_only: "Standby-only days limit them to standby assignments.",
                 rule_priority: "Priority days get a stronger chance of assignment.",
                 rule_standby: "Standby days block other shifts but still count toward rest tracking.",
                 warning_rules_title: "Warning Triggers",
@@ -254,7 +257,8 @@
                 set_avail: "الكل متاح",
                 set_unavail: "الكل غير متاح",
                 set_morn: "الكل صباحي فقط",
-                set_eve: "الكل مسائي فقط", 
+                set_night: "الكل ليلي فقط",
+                set_standby: "الكل احتياط فقط",
                 set_sun: "أولوية الأحد",
                 set_mon: "أولوية الاثنين",
                 set_tue: "أولوية الثلاثاء",
@@ -264,7 +268,8 @@
                 set_sat: "أولوية السبت",
                 opt_unavail: "غير متاح",
                 opt_morn: "صباحي فقط",
-                opt_eve: "مسائي فقط",
+                opt_night: "ليلي فقط",
+                opt_standby: "احتياط فقط",
                 opt_priority: "! أولوية !",
                 manage_staff: "إدارة قائمة الموظفين وقواعد الورديات في هذه العلامة.",
                 add_staff: "إضافة موظف",
@@ -361,7 +366,8 @@
                 rule_single_shift: "شخص واحد لا يحصل إلا على نوبة عمل أو احتياط واحدة في اليوم.",
                 rule_unavailable: "الأيام غير المتاحة لن تُكلّف أبداً.",
                 rule_morning_only: "(صباح فقط) يمنع وضعه في النوبات المسائية أو الليلية.",
-                rule_night_only: "(مساء فقط) يمنع وضعه في النوبات الصباحية.",
+                rule_night_only: "(ليلي فقط) يمنع وضعه في النوبات الصباحية.",
+                rule_standby_only: "(احتياط فقط) يقتصر تكليفه على مناوبة الاحتياط.",
                 rule_priority: "الأيام ذات الأولوية تُمنح فرصة أكبر للتكليف.",
                 rule_standby: "أيام الاحتياط تمنع النوبات الأخرى لكنها تُحسب ضمن تتبع الراحة.",
                 warning_rules_title: "متى تظهر التحذيرات",
@@ -1576,6 +1582,7 @@
                                 const avail = availability[empId]?.[dKey];
 
                                 if (avail === 'unavailable') return -100000;
+                                if (avail === 'standby_only' && shiftType !== 'standby') return -100000;
                                 if (shiftType === 'morning' && (avail === 'night_only' || avail === 'night_shift_only')) return -100000;
                                 if ((shiftType === 'night' || shiftType === 'nightShift') && avail === 'morning_only') return -100000;
                                 
@@ -1590,6 +1597,7 @@
 
                                 if (isWorkShift && (maxShifts - state.totalShifts >= 2)) score += 15000;
                                 if (avail === 'priority') score += 20000;
+                                if (avail === 'standby_only' && shiftType === 'standby') score += 12000;
 
                                 if (patternType === 'hybrid') {
                                     if(isWorkShift) { 
@@ -2351,7 +2359,8 @@
                                                                     <option value="">{t('set_avail')}</option>
                                                                     <option value="unavailable">{t('set_unavail')}</option>
                                                                     <option value="morning_only">{t('set_morn')}</option>
-                                                                    <option value="night_only">{t('set_eve')}</option>
+                                                                    <option value="night_only">{t('set_night')}</option>
+                                                                    <option value="standby_only">{t('set_standby')}</option>
                                                                     <option value="priority_day_0" className="font-bold bg-indigo-50">{t('set_sun')}</option>
                                                                     <option value="priority_day_1" className="font-bold bg-indigo-50">{t('set_mon')}</option>
                                                                     <option value="priority_day_2" className="font-bold bg-indigo-50">{t('set_tue')}</option>
@@ -2378,6 +2387,7 @@
                                                                     if(status === 'unavailable') cellClass = "bg-red-50";
                                                                     if(status === 'morning_only') cellClass = "bg-amber-50";
                                                                     if(status === 'night_only') cellClass = "bg-indigo-50";
+                                                                    if(status === 'standby_only') cellClass = "bg-emerald-50";
                                                                     if(status === 'priority') cellClass = "bg-indigo-100 ring-2 ring-indigo-300 ring-inset";
 
                                                                     return (
@@ -2386,7 +2396,8 @@
                                                                                 <option value="">-</option>
                                                                                 <option value="unavailable">{t('opt_unavail')}</option>
                                                                                 <option value="morning_only">{t('opt_morn')}</option>
-                                                                                <option value="night_only">{t('opt_eve')}</option>
+                                                                                <option value="night_only">{t('opt_night')}</option>
+                                                                                <option value="standby_only">{t('opt_standby')}</option>
                                                                                 <option value="priority">{t('opt_priority')}</option>
                                                                             </select>
                                                                         </td>
@@ -2403,7 +2414,7 @@
                                                 <div className="flex items-center gap-2 text-slate-800 font-semibold mb-1"><Info size={16}/> {t('rules_title')}</div>
                                                 <p className="text-xs text-slate-500 mb-3">{t('rules_desc')}</p>
                                                 <ul className="space-y-2 text-sm text-slate-700">
-                                                    {[t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_night_only'), t('rule_priority'), t('rule_standby')].map((item, idx) => (
+                                                    {[t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_night_only'), t('rule_standby_only'), t('rule_priority'), t('rule_standby')].map((item, idx) => (
                                                         <li key={idx} className="flex items-start gap-2">
                                                             <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-indigo-500"></span>
                                                             <span>{item}</span>
