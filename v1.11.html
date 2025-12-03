@@ -1465,9 +1465,12 @@
                                         borderLeft: `${linePx} solid ${lineColor}`,
                                         borderRight: `${linePx} solid ${lineColor}`
                                     }}>
-                                        {previewColumns.map(col => (
-                                            <div key={col.key} style={{ backgroundColor: 'transparent' }}>{col.label}</div>
-                                        ))}
+                                        {previewColumns.map((col, idx) => {
+                                            const sampleLabel = idx === 0 ? (col.label || '') : '';
+                                            return (
+                                                <div key={col.key} style={{ backgroundColor: 'transparent' }}>{sampleLabel}</div>
+                                            );
+                                        })}
                                     </div>
                                     {[1,2,3].map(i => (
                                         <div key={i} className="grid text-xs p-0 text-center" style={{
