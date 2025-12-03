@@ -190,7 +190,21 @@
                 excel_border_settings: "Excel Border Styling",
                 watermark_opacity: "Background Transparency",
                 reset_view_styles: "Restore View Defaults",
-                reset_excel_styles: "Restore Excel Defaults"
+                reset_excel_styles: "Restore Excel Defaults",
+                rules_title: "Rules & Warnings",
+                rules_desc: "Quick reminders about the scheduling logic and what triggers alerts.",
+                rule_single_shift: "Each person can take only one work or standby assignment per day.",
+                rule_unavailable: "Unavailable days will never be assigned.",
+                rule_morning_only: "Morning-only keeps them off evening or night shifts.",
+                rule_night_only: "Evening-only keeps them off morning shifts.",
+                rule_priority: "Priority days get a stronger chance of assignment.",
+                rule_standby: "Standby days block other shifts but still count toward rest tracking.",
+                warning_rules_title: "Warning Triggers",
+                warning_rules_desc: "These show up when balance or rest expectations are broken.",
+                warning_imbalance: "Shift totals differ by more than 2 between staff.",
+                warning_three_day: "Someone works 3 days straight.",
+                warning_violation_streak: "A person accumulates multiple 3-day streaks.",
+                warning_violation_rest: "A person rests 3+ days too many times."
             },
             ar: {
                 title: "Scheduler V1.9.4",
@@ -341,7 +355,21 @@
                 line_color: "لون خطوط الجدول",
                 excel_border_settings: "تنسيق حدود ملف الإكسل",
                 reset_view_styles: "استعادة تنسيقات العرض الافتراضية",
-                reset_excel_styles: "استعادة تنسيقات الإكسل الافتراضية"
+                reset_excel_styles: "استعادة تنسيقات الإكسل الافتراضية",
+                rules_title: "القواعد والتنبيهات",
+                rules_desc: "تذكير سريع بمنطق الجدولة وما الذي يسبب التنبيهات.",
+                rule_single_shift: "شخص واحد لا يحصل إلا على نوبة عمل أو احتياط واحدة في اليوم.",
+                rule_unavailable: "الأيام غير المتاحة لن تُكلّف أبداً.",
+                rule_morning_only: "(صباح فقط) يمنع وضعه في النوبات المسائية أو الليلية.",
+                rule_night_only: "(مساء فقط) يمنع وضعه في النوبات الصباحية.",
+                rule_priority: "الأيام ذات الأولوية تُمنح فرصة أكبر للتكليف.",
+                rule_standby: "أيام الاحتياط تمنع النوبات الأخرى لكنها تُحسب ضمن تتبع الراحة.",
+                warning_rules_title: "متى تظهر التحذيرات",
+                warning_rules_desc: "تظهر عندما يختل التوازن أو تنكسر متطلبات الراحة.",
+                warning_imbalance: "إجمالي النوبات يختلف بأكثر من 2 بين الأفراد.",
+                warning_three_day: "شخص يعمل 3 أيام متتالية.",
+                warning_violation_streak: "شخص لديه أكثر من سلسلة عمل من 3 أيام.",
+                warning_violation_rest: "شخص يرتاح 3 أيام أو أكثر لمرات كثيرة."
             }
         };
 
@@ -2294,7 +2322,7 @@
                                         <h2 className="text-xl font-bold text-slate-800">{t('avail_title')}</h2>
                                         <p className="text-sm text-slate-500 mt-1">{t('avail_desc')}</p>
                                     </div>
-                                    <div className="flex-1 overflow-x-auto custom-scroll p-6"> 
+                                    <div className="flex-1 overflow-x-auto custom-scroll p-6 space-y-6">
                                         <div className="bg-white rounded-lg shadow-sm border border-slate-200 inline-block min-w-full">
                                             <table className="w-full text-sm">
                                                 <thead>
@@ -2369,6 +2397,32 @@
                                                     })}
                                                 </tbody>
                                             </table>
+                                        </div>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                                                <div className="flex items-center gap-2 text-slate-800 font-semibold mb-1"><Info size={16}/> {t('rules_title')}</div>
+                                                <p className="text-xs text-slate-500 mb-3">{t('rules_desc')}</p>
+                                                <ul className="space-y-2 text-sm text-slate-700">
+                                                    {[t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_night_only'), t('rule_priority'), t('rule_standby')].map((item, idx) => (
+                                                        <li key={idx} className="flex items-start gap-2">
+                                                            <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-indigo-500"></span>
+                                                            <span>{item}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div className="bg-white rounded-lg border border-amber-200 shadow-sm p-4">
+                                                <div className="flex items-center gap-2 text-amber-800 font-semibold mb-1"><AlertTriangle size={16}/> {t('warning_rules_title')}</div>
+                                                <p className="text-xs text-slate-500 mb-3">{t('warning_rules_desc')}</p>
+                                                <ul className="space-y-2 text-sm text-slate-700">
+                                                    {[t('warning_imbalance'), t('warning_three_day'), t('warning_violation_streak'), t('warning_violation_rest')].map((item, idx) => (
+                                                        <li key={idx} className="flex items-start gap-2">
+                                                            <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-500"></span>
+                                                            <span>{item}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
