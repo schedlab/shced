@@ -20,6 +20,8 @@
                 'https://unpkg.com/glpk.js@4.0.2/dist/glpk.min.js',
             ];
 
+            let factorySource = null;
+
             const tryLoadSequentially = async () => {
                 const previousModule = window.module;
                 const hadModule = Object.prototype.hasOwnProperty.call(window, 'module');
@@ -58,8 +60,12 @@
                         window.glpk = moduleExports;
                     }
                     const available = hasFactory();
+                    if (loaded && available) {
+                        factorySource = src;
+                        restoreModule();
+                        return true;
+                    }
                     restoreModule();
-                    if (loaded && available) return true;
                 }
                 return false;
             };
@@ -69,7 +75,10 @@
                 const factory = window.GLPK || window.glpk || (window.module && window.module.exports && (window.module.exports.GLPK || window.module.exports.glpk || window.module.exports));
                 if (!factory) return null;
                 if (typeof factory === 'function') {
-                    return await factory();
+                    const basePath = factorySource ? factorySource.substring(0, factorySource.lastIndexOf('/') + 1) : '';
+                    return await factory({
+                        locateFile: (file) => `${basePath}${file}`,
+                    });
                 }
                 return factory;
             } catch (err) {
