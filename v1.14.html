@@ -207,10 +207,12 @@
                 rule_standby: "Standby days block other shifts but still count toward rest tracking.",
                 warning_rules_title: "Warning Triggers",
                 warning_rules_desc: "These show up when balance or rest expectations are broken.",
+                warning_unfilled: "Unfilled shifts are highlighted first—fill required slots immediately.",
                 warning_imbalance: "Shift totals differ by more than 2 between staff.",
                 warning_three_day: "Someone works 3 days straight.",
                 warning_violation_streak: "A person accumulates multiple 3-day streaks.",
-                warning_violation_rest: "A person rests 3+ days too many times."
+                warning_violation_rest: "A person rests 3+ days too many times.",
+                warning_unfilled_detail: "UNFILLED: {shift} on {date} missing {count}"
             },
             ar: {
                 title: "Scheduler V1.9.4",
@@ -378,10 +380,12 @@
                 rule_standby: "أيام الاحتياط تمنع النوبات الأخرى لكنها تُحسب ضمن تتبع الراحة.",
                 warning_rules_title: "متى تظهر التحذيرات",
                 warning_rules_desc: "تظهر عندما يختل التوازن أو تنكسر متطلبات الراحة.",
+                warning_unfilled: "النوبات غير المغطاة تظهر أولاً — يرجى تعبئتها فوراً.",
                 warning_imbalance: "إجمالي النوبات يختلف بأكثر من 2 بين الأفراد.",
                 warning_three_day: "شخص يعمل 3 أيام متتالية.",
                 warning_violation_streak: "شخص لديه أكثر من سلسلة عمل من 3 أيام.",
-                warning_violation_rest: "شخص يرتاح 3 أيام أو أكثر لمرات كثيرة."
+                warning_violation_rest: "شخص يرتاح 3 أيام أو أكثر لمرات كثيرة.",
+                warning_unfilled_detail: "نقص تغطية: {shift} بتاريخ {date} ناقص {count}"
             }
         };
 
@@ -677,6 +681,22 @@
                         }
                     });
                     if (changed) setRequirements(newReqs);
+                } else {
+                    if (shiftKey === 'nightShift' || shiftKey === 'standby') {
+                        setAvailability(prev => {
+                            const updated = { ...prev };
+                            Object.keys(updated).forEach(empId => {
+                                const days = { ...updated[empId] };
+                                Object.keys(days).forEach(dateKey => {
+                                    if ((shiftKey === 'nightShift' && days[dateKey] === 'night_only') || (shiftKey === 'standby' && days[dateKey] === 'standby_only')) {
+                                        delete days[dateKey];
+                                    }
+                                });
+                                updated[empId] = days;
+                            });
+                            return updated;
+                        });
+                    }
                 }
             };
 
@@ -1587,6 +1607,8 @@
                                 const pref = preferences[empId] || 'neutral';
                                 const avail = availability[empId]?.[dKey];
 
+                                if (!enabledShifts.nightShift && avail === 'night_only') return -100000;
+                                if (!enabledShifts.standby && avail === 'standby_only') return -100000;
                                 if (avail === 'unavailable') return -100000;
                                 if (avail === 'standby_only' && shiftType !== 'standby') return -100000;
                                 if (avail === 'evening_only' && shiftType !== 'night') return -100000;
@@ -1681,16 +1703,38 @@
                 const data = {};
                 const days = getCalculatedDays();
                 const issues = [];
+                const criticalIssues = [];
+                const unfilledDays = new Set();
                 let grandTotal = 0;
                 employees.forEach(emp => { data[emp.id] = { total: 0, morning: 0, night: 0, nightShift: 0, standbyCount: 0, rest: 0, history: [] }; });
                 days.forEach(day => {
                     const dKey = formatDateKey(day);
                     const daySched = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
+                    const req = requirements[day.getDay()] || {};
+                    const shiftChecks = [
+                        { key: 'morning', label: t('morn'), required: req.morning || 0, enabled: true },
+                        { key: 'night', label: t('eve'), required: req.night || 0, enabled: true },
+                        { key: 'nightShift', label: t('night'), required: req.nightShift || 0, enabled: enabledShifts.nightShift },
+                        { key: 'standby', label: t('standby'), required: req.standby || 0, enabled: enabledShifts.standby }
+                    ];
+                    shiftChecks.forEach(check => {
+                        const actual = (daySched[check.key] || []).length;
+                        if (check.enabled && check.required > actual) {
+                            const missing = check.required - actual;
+                            criticalIssues.push(
+                                t('warning_unfilled_detail')
+                                    .replace('{shift}', check.label)
+                                    .replace('{date}', formatShortDate(day))
+                                    .replace('{count}', missing)
+                            );
+                            unfilledDays.add(dKey);
+                        }
+                    });
                     employees.forEach(emp => {
                         const worked = daySched.morning.includes(emp.id) || daySched.night.includes(emp.id) || (daySched.nightShift||[]).includes(emp.id);
                         const onStandby = (daySched.standby||[]).includes(emp.id);
                         if (worked) {
-                            data[emp.id].total++; grandTotal++; data[emp.id].history.push(1); 
+                            data[emp.id].total++; grandTotal++; data[emp.id].history.push(1);
                             if (daySched.morning.includes(emp.id)) data[emp.id].morning++;
                             if (daySched.night.includes(emp.id)) data[emp.id].night++;
                             if ((daySched.nightShift||[]).includes(emp.id)) data[emp.id].nightShift++;
@@ -1712,15 +1756,16 @@
                     if (threeDayWorkStreaks > 1) issues.push(`${emp.name}: ${t('issue_viol_streak')}`);
                     if (longRestPeriods > 1) issues.push(`${emp.name}: ${t('issue_viol_rest')}`);
                 });
-                return { data, issues, avg, grandTotal };
-            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd]);
+                return { data, issues: [...criticalIssues, ...issues], avg, grandTotal, unfilledDays };
+            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd, requirements]);
 
             const handleBulkAvailability = (empId, status) => {
-                const days = getCalculatedDays(); 
+                const days = getCalculatedDays();
                 setAvailability(prev => {
                     const newAvail = { ...prev }; if (!newAvail[empId]) newAvail[empId] = {};
+                    if ((status === 'night_only' && !enabledShifts.nightShift) || (status === 'standby_only' && !enabledShifts.standby)) return newAvail;
                     if (status.startsWith('priority_day_')) {
-                        const targetDayIdx = parseInt(status.split('_')[2]); 
+                        const targetDayIdx = parseInt(status.split('_')[2]);
                         days.forEach(day => { 
                             if (day.getDay() === targetDayIdx) newAvail[empId][formatDateKey(day)] = 'priority'; 
                         }); 
@@ -1984,7 +2029,8 @@
                                                     const req = requirements[day.getDay()];
                                                     const isFri = day.getDay() === 5;
                                                     const isSat = day.getDay() === 6;
-                                                    
+                                                    const hasUnfilled = stats.unfilledDays?.has(dKey);
+
                                                     let workers = [...s.morning, ...s.night];
                                                     if(enabledShifts.nightShift) workers = [...workers, ...(s.nightShift||[])];
                                                     const offDuty = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id));
@@ -1994,19 +2040,19 @@
                                                     ];
                                                     if(enabledShifts.nightShift) shiftsToRender.push({ key: 'nightShift', start: req.nightShiftStart, end: req.nightShiftEnd, bg: 'bg-purple-100 border-purple-300 text-purple-900' });
                                                     if(enabledShifts.standby) shiftsToRender.push({ key: 'standby', start: null, end: null, bg: 'bg-cyan-100 border-cyan-300 text-cyan-900' });
-                                                    
+
                                                     // FIX: Add dynamic border width style
                                                     const cellStyle = { borderRightWidth: lineWeight, borderLeftWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' };
 
                                                     return (
-                                                        <tr key={dKey} className={`group hover:bg-slate-50 ${isFri ? 'bg-gray-100' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`} style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
+                                                        <tr key={dKey} className={`group ${hasUnfilled ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50'} ${isFri ? 'bg-gray-100' : ''} ${isSat ? 'bg-indigo-50/10' : ''}`} style={{ borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
                                                             {/* FIXED: Date column cells center aligned */}
-                                                            <td className="p-3 border-e border-slate-100 align-top text-center" style={{ ...cellStyle, width: '120px' }}>
-                                                                <div className="font-bold text-slate-700" style={{ fontSize: `${viewSettings.headerFontSize}px` }}>{formatShortDate(day)}</div>
-                                                                <div className={`uppercase ${isFri ? 'text-red-400 font-bold' : 'text-slate-400'}`} style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>{getDayName(day)}</div>
+                                                            <td className="p-3 border-e border-slate-100 align-top text-center" style={{ ...cellStyle, width: '120px', backgroundColor: hasUnfilled ? '#fff1f2' : undefined }}>
+                                                                <div className={`font-bold ${hasUnfilled ? 'text-red-900' : 'text-slate-700'}`} style={{ fontSize: `${viewSettings.headerFontSize}px` }}>{formatShortDate(day)}</div>
+                                                                <div className={`uppercase ${hasUnfilled ? 'text-red-700' : (isFri ? 'text-red-400 font-bold' : 'text-slate-400')}`} style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>{getDayName(day)}</div>
                                                             </td>
                                                             {shiftsToRender.map(sh => (
-                                                                <td key={sh.key} className="p-2 border-e border-slate-100 align-top" style={cellStyle}>
+                                                                <td key={sh.key} className={`p-2 border-e border-slate-100 align-top ${hasUnfilled ? 'bg-red-50/60' : ''}`} style={cellStyle}>
                                                                     <div className="flex flex-wrap gap-2 justify-center">
                                                                         {employees.map(emp => {
                                                                             const isSelected = (s[sh.key] || []).includes(emp.id);
@@ -2040,7 +2086,7 @@
                                                                     <div className={`mt-1 text-center ${(s[sh.key]||[]).length !== req[sh.key] ? 'text-red-400 font-medium' : 'text-green-500 opacity-50'}`} style={{ fontSize: `${Math.max(8, viewSettings.cellFontSize - 2)}px` }}>{(s[sh.key]||[]).length}/{req[sh.key]}</div>
                                                                 </td>
                                                             ))}
-                                                            <td className="p-2 align-top bg-slate-50/30" style={cellStyle}>
+                                                            <td className={`p-2 align-top ${hasUnfilled ? 'bg-red-50/60' : 'bg-slate-50/30'}`} style={cellStyle}>
                                                                 <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
                                                                     {offDuty.map(emp => {
                                                                         const isHighlighted = highlightedEmp == emp.id;
@@ -2370,8 +2416,8 @@
                                                                     <option value="unavailable">{t('set_unavail')}</option>
                                                                     <option value="morning_only">{t('set_morn')}</option>
                                                                     <option value="evening_only">{t('set_eve')}</option>
-                                                                    <option value="night_only">{t('set_night')}</option>
-                                                                    <option value="standby_only">{t('set_standby')}</option>
+                                                                    {enabledShifts.nightShift && <option value="night_only">{t('set_night')}</option>}
+                                                                    {enabledShifts.standby && <option value="standby_only">{t('set_standby')}</option>}
                                                                     <option value="priority_day_0" className="font-bold bg-indigo-50">{t('set_sun')}</option>
                                                                     <option value="priority_day_1" className="font-bold bg-indigo-50">{t('set_mon')}</option>
                                                                     <option value="priority_day_2" className="font-bold bg-indigo-50">{t('set_tue')}</option>
@@ -2398,8 +2444,8 @@
                                                                     if(status === 'unavailable') cellClass = "bg-red-50";
                                                                     if(status === 'morning_only') cellClass = "bg-amber-50";
                                                                     if(status === 'evening_only') cellClass = "bg-blue-50";
-                                                                    if(status === 'night_only') cellClass = "bg-indigo-50";
-                                                                    if(status === 'standby_only') cellClass = "bg-emerald-50";
+                                                                    if(status === 'night_only' && enabledShifts.nightShift) cellClass = "bg-indigo-50";
+                                                                    if(status === 'standby_only' && enabledShifts.standby) cellClass = "bg-emerald-50";
                                                                     if(status === 'priority') cellClass = "bg-indigo-100 ring-2 ring-indigo-300 ring-inset";
 
                                                                     return (
@@ -2409,8 +2455,8 @@
                                                                                 <option value="unavailable">{t('opt_unavail')}</option>
                                                                                 <option value="morning_only">{t('opt_morn')}</option>
                                                                                 <option value="evening_only">{t('opt_eve')}</option>
-                                                                                <option value="night_only">{t('opt_night')}</option>
-                                                                                <option value="standby_only">{t('opt_standby')}</option>
+                                                                                {enabledShifts.nightShift && <option value="night_only">{t('opt_night')}</option>}
+                                                                                {enabledShifts.standby && <option value="standby_only">{t('opt_standby')}</option>}
                                                                                 <option value="priority">{t('opt_priority')}</option>
                                                                             </select>
                                                                         </td>
@@ -2427,24 +2473,34 @@
                                                 <div className="flex items-center gap-2 text-slate-800 font-semibold mb-1"><Info size={16}/> {t('rules_title')}</div>
                                                 <p className="text-xs text-slate-500 mb-3">{t('rules_desc')}</p>
                                                 <ul className="space-y-2 text-sm text-slate-700">
-                                                    {[t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_evening_only'), t('rule_night_only'), t('rule_standby_only'), t('rule_priority'), t('rule_standby')].map((item, idx) => (
-                                                        <li key={idx} className="flex items-start gap-2">
-                                                            <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-indigo-500"></span>
-                                                            <span>{item}</span>
-                                                        </li>
-                                                    ))}
+                                                    {(() => {
+                                                        const ruleItems = [t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_evening_only')];
+                                                        if (enabledShifts.nightShift) ruleItems.push(t('rule_night_only'));
+                                                        if (enabledShifts.standby) ruleItems.push(t('rule_standby_only'));
+                                                        ruleItems.push(t('rule_priority'));
+                                                        if (enabledShifts.standby) ruleItems.push(t('rule_standby'));
+                                                        return ruleItems.map((item, idx) => (
+                                                            <li key={idx} className="flex items-start gap-2">
+                                                                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-indigo-500"></span>
+                                                                <span>{item}</span>
+                                                            </li>
+                                                        ));
+                                                    })()}
                                                 </ul>
                                             </div>
                                             <div className="bg-white rounded-lg border border-amber-200 shadow-sm p-4">
                                                 <div className="flex items-center gap-2 text-amber-800 font-semibold mb-1"><AlertTriangle size={16}/> {t('warning_rules_title')}</div>
                                                 <p className="text-xs text-slate-500 mb-3">{t('warning_rules_desc')}</p>
                                                 <ul className="space-y-2 text-sm text-slate-700">
-                                                    {[t('warning_imbalance'), t('warning_three_day'), t('warning_violation_streak'), t('warning_violation_rest')].map((item, idx) => (
-                                                        <li key={idx} className="flex items-start gap-2">
-                                                            <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-500"></span>
-                                                            <span>{item}</span>
-                                                        </li>
-                                                    ))}
+                                                    {(() => {
+                                                        const warningItems = [t('warning_unfilled'), t('warning_imbalance'), t('warning_three_day'), t('warning_violation_streak'), t('warning_violation_rest')];
+                                                        return warningItems.map((item, idx) => (
+                                                            <li key={idx} className="flex items-start gap-2">
+                                                                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-500"></span>
+                                                                <span>{item}</span>
+                                                            </li>
+                                                        ));
+                                                    })()}
                                                 </ul>
                                             </div>
                                         </div>
