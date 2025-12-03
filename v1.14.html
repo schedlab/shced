@@ -13,15 +13,24 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/glpk.js@0.23.0/dist/glpk.min.js"></script>
     <script>
         window.ilpSolverReady = (async () => {
+            const ensureScriptLoaded = () => new Promise((resolve) => {
+                if (window.GLPK || window.glpk) return resolve();
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/glpk.js@0.23.0/dist/glpk.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => resolve();
+                document.head.appendChild(script);
+            });
+            await ensureScriptLoaded();
             try {
-                if (typeof window.GLPK === 'function') {
-                    return await window.GLPK();
+                const factory = window.GLPK || window.glpk;
+                if (!factory) return null;
+                if (typeof factory === 'function') {
+                    return await factory();
                 }
-                if (window.GLPK) return window.GLPK;
-                if (window.glpk) return window.glpk;
+                return factory;
             } catch (err) {
                 console.error('Unable to initialize GLPK', err);
             }
@@ -1746,7 +1755,7 @@
                 const standbyVars = {};
                 const fairnessVars = {};
                 const binaries = new Set();
-                const bounds = [{ name: 'Z', type: glpk.GLP_LO, lb: 0, ub: 0 }];
+                const bounds = [{ name: 'Z', type: glpk.GLP_LO, lb: 0 }];
                 const constraints = [];
 
                 const allRequirements = days.map(getShiftRequirementsForDay);
