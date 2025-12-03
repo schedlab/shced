@@ -89,6 +89,8 @@
                 set_unavail: "Set All Unavailable",
                 set_morn: "Set All Morning Only",
                 set_eve: "Set All Evening Only",
+                set_night: "Set All Night Only",
+                set_standby: "Set All Standby Only",
                 set_sun: "Prioritize Sundays",
                 set_mon: "Prioritize Mondays",
                 set_tue: "Prioritize Tuesdays",
@@ -98,7 +100,9 @@
                 set_sat: "Prioritize Saturdays",
                 opt_unavail: "Unavail",
                 opt_morn: "Morn Only",
-                opt_eve: "Eve Only",
+                opt_eve: "Evening Only",
+                opt_night: "Night Only",
+                opt_standby: "Standby Only",
                 opt_priority: "! Priority !",
                 manage_staff: "Manage Staff list and Shift Rules in this tab.",
                 add_staff: "Add Staff",
@@ -190,7 +194,23 @@
                 excel_border_settings: "Excel Border Styling",
                 watermark_opacity: "Background Transparency",
                 reset_view_styles: "Restore View Defaults",
-                reset_excel_styles: "Restore Excel Defaults"
+                reset_excel_styles: "Restore Excel Defaults",
+                rules_title: "Rules & Warnings",
+                rules_desc: "Quick reminders about the scheduling logic and what triggers alerts.",
+                rule_single_shift: "Each person can take only one work or standby assignment per day.",
+                rule_unavailable: "Unavailable days will never be assigned.",
+                rule_morning_only: "Morning-only keeps them off evening or night shifts.",
+                rule_evening_only: "Evening-only keeps them off morning or night shifts.",
+                rule_night_only: "Night-only keeps them off morning or evening shifts.",
+                rule_standby_only: "Standby-only days limit them to standby assignments.",
+                rule_priority: "Priority days get a stronger chance of assignment.",
+                rule_standby: "Standby days block other shifts but still count toward rest tracking.",
+                warning_rules_title: "Warning Triggers",
+                warning_rules_desc: "These show up when balance or rest expectations are broken.",
+                warning_imbalance: "Shift totals differ by more than 2 between staff.",
+                warning_three_day: "Someone works 3 days straight.",
+                warning_violation_streak: "A person accumulates multiple 3-day streaks.",
+                warning_violation_rest: "A person rests 3+ days too many times."
             },
             ar: {
                 title: "Scheduler V1.9.4",
@@ -240,7 +260,9 @@
                 set_avail: "الكل متاح",
                 set_unavail: "الكل غير متاح",
                 set_morn: "الكل صباحي فقط",
-                set_eve: "الكل مسائي فقط", 
+                set_eve: "الكل مسائي فقط",
+                set_night: "الكل ليلي فقط",
+                set_standby: "الكل احتياط فقط",
                 set_sun: "أولوية الأحد",
                 set_mon: "أولوية الاثنين",
                 set_tue: "أولوية الثلاثاء",
@@ -251,6 +273,8 @@
                 opt_unavail: "غير متاح",
                 opt_morn: "صباحي فقط",
                 opt_eve: "مسائي فقط",
+                opt_night: "ليلي فقط",
+                opt_standby: "احتياط فقط",
                 opt_priority: "! أولوية !",
                 manage_staff: "إدارة قائمة الموظفين وقواعد الورديات في هذه العلامة.",
                 add_staff: "إضافة موظف",
@@ -341,7 +365,23 @@
                 line_color: "لون خطوط الجدول",
                 excel_border_settings: "تنسيق حدود ملف الإكسل",
                 reset_view_styles: "استعادة تنسيقات العرض الافتراضية",
-                reset_excel_styles: "استعادة تنسيقات الإكسل الافتراضية"
+                reset_excel_styles: "استعادة تنسيقات الإكسل الافتراضية",
+                rules_title: "القواعد والتنبيهات",
+                rules_desc: "تذكير سريع بمنطق الجدولة وما الذي يسبب التنبيهات.",
+                rule_single_shift: "شخص واحد لا يحصل إلا على نوبة عمل أو احتياط واحدة في اليوم.",
+                rule_unavailable: "الأيام غير المتاحة لن تُكلّف أبداً.",
+                rule_morning_only: "(صباح فقط) يمنع وضعه في النوبات المسائية أو الليلية.",
+                rule_evening_only: "(مسائي فقط) يمنع وضعه في النوبات الصباحية أو الليلية.",
+                rule_night_only: "(ليلي فقط) يمنع وضعه في النوبات الصباحية أو المسائية.",
+                rule_standby_only: "(احتياط فقط) يقتصر تكليفه على مناوبة الاحتياط.",
+                rule_priority: "الأيام ذات الأولوية تُمنح فرصة أكبر للتكليف.",
+                rule_standby: "أيام الاحتياط تمنع النوبات الأخرى لكنها تُحسب ضمن تتبع الراحة.",
+                warning_rules_title: "متى تظهر التحذيرات",
+                warning_rules_desc: "تظهر عندما يختل التوازن أو تنكسر متطلبات الراحة.",
+                warning_imbalance: "إجمالي النوبات يختلف بأكثر من 2 بين الأفراد.",
+                warning_three_day: "شخص يعمل 3 أيام متتالية.",
+                warning_violation_streak: "شخص لديه أكثر من سلسلة عمل من 3 أيام.",
+                warning_violation_rest: "شخص يرتاح 3 أيام أو أكثر لمرات كثيرة."
             }
         };
 
@@ -1548,7 +1588,9 @@
                                 const avail = availability[empId]?.[dKey];
 
                                 if (avail === 'unavailable') return -100000;
-                                if (shiftType === 'morning' && (avail === 'night_only' || avail === 'night_shift_only')) return -100000;
+                                if (avail === 'standby_only' && shiftType !== 'standby') return -100000;
+                                if (avail === 'evening_only' && shiftType !== 'night') return -100000;
+                                if (avail === 'night_only' && shiftType !== 'nightShift') return -100000;
                                 if ((shiftType === 'night' || shiftType === 'nightShift') && avail === 'morning_only') return -100000;
                                 
                                 const s = newSchedule[dKey];
@@ -1562,6 +1604,7 @@
 
                                 if (isWorkShift && (maxShifts - state.totalShifts >= 2)) score += 15000;
                                 if (avail === 'priority') score += 20000;
+                                if (avail === 'standby_only' && shiftType === 'standby') score += 12000;
 
                                 if (patternType === 'hybrid') {
                                     if(isWorkShift) { 
@@ -1589,7 +1632,8 @@
                                         if (state.daysResting >= 2) { if (state.longRestCount >= 1) score += 12000; else score -= 4000; } else if (state.daysResting < restNeeded) score -= 4000;
                                     }
                                 }
-                                if (avail === 'night_only' && (shiftType === 'night' || shiftType === 'nightShift')) score += 5000;
+                                if (avail === 'evening_only' && shiftType === 'night') score += 5000;
+                                if (avail === 'night_only' && shiftType === 'nightShift') score += 5000;
                                 if (avail === 'morning_only' && shiftType === 'morning') score += 5000;
                                 if (isWorkShift) score -= (state.totalShifts * 50); 
                                 if (shiftType === 'night' || shiftType === 'nightShift') { if (pref === 'night') score += 200; else if (pref === 'morning') score -= 50; } 
@@ -1972,8 +2016,10 @@
                                                                             const avail = availability[emp.id]?.[dKey];
                                                                             let disabled = isBusy && !isSelected;
                                                                             if (avail === 'unavailable') disabled = true;
-                                                                            if (sh.key === 'morning' && avail === 'night_only') disabled = true;
-                                                                            if (sh.key === 'night' && avail === 'morning_only') disabled = true;
+                                                                            if (avail === 'standby_only' && sh.key !== 'standby') disabled = true;
+                                                                            if (sh.key === 'morning' && (avail === 'night_only' || avail === 'evening_only')) disabled = true;
+                                                                            if (sh.key === 'night' && (avail === 'morning_only' || avail === 'night_only')) disabled = true;
+                                                                            if (sh.key === 'nightShift' && (avail === 'morning_only' || avail === 'evening_only')) disabled = true;
                                                                             if (req[sh.key] === 0 && !isSelected) return null;
 
                                                                             const isHighlighted = highlightedEmp == emp.id;
@@ -2294,7 +2340,7 @@
                                         <h2 className="text-xl font-bold text-slate-800">{t('avail_title')}</h2>
                                         <p className="text-sm text-slate-500 mt-1">{t('avail_desc')}</p>
                                     </div>
-                                    <div className="flex-1 overflow-x-auto custom-scroll p-6"> 
+                                    <div className="flex-1 overflow-x-auto custom-scroll p-6 space-y-6">
                                         <div className="bg-white rounded-lg shadow-sm border border-slate-200 inline-block min-w-full">
                                             <table className="w-full text-sm">
                                                 <thead>
@@ -2323,7 +2369,9 @@
                                                                     <option value="">{t('set_avail')}</option>
                                                                     <option value="unavailable">{t('set_unavail')}</option>
                                                                     <option value="morning_only">{t('set_morn')}</option>
-                                                                    <option value="night_only">{t('set_eve')}</option>
+                                                                    <option value="evening_only">{t('set_eve')}</option>
+                                                                    <option value="night_only">{t('set_night')}</option>
+                                                                    <option value="standby_only">{t('set_standby')}</option>
                                                                     <option value="priority_day_0" className="font-bold bg-indigo-50">{t('set_sun')}</option>
                                                                     <option value="priority_day_1" className="font-bold bg-indigo-50">{t('set_mon')}</option>
                                                                     <option value="priority_day_2" className="font-bold bg-indigo-50">{t('set_tue')}</option>
@@ -2349,7 +2397,9 @@
                                                                     let cellClass = "";
                                                                     if(status === 'unavailable') cellClass = "bg-red-50";
                                                                     if(status === 'morning_only') cellClass = "bg-amber-50";
+                                                                    if(status === 'evening_only') cellClass = "bg-blue-50";
                                                                     if(status === 'night_only') cellClass = "bg-indigo-50";
+                                                                    if(status === 'standby_only') cellClass = "bg-emerald-50";
                                                                     if(status === 'priority') cellClass = "bg-indigo-100 ring-2 ring-indigo-300 ring-inset";
 
                                                                     return (
@@ -2358,7 +2408,9 @@
                                                                                 <option value="">-</option>
                                                                                 <option value="unavailable">{t('opt_unavail')}</option>
                                                                                 <option value="morning_only">{t('opt_morn')}</option>
-                                                                                <option value="night_only">{t('opt_eve')}</option>
+                                                                                <option value="evening_only">{t('opt_eve')}</option>
+                                                                                <option value="night_only">{t('opt_night')}</option>
+                                                                                <option value="standby_only">{t('opt_standby')}</option>
                                                                                 <option value="priority">{t('opt_priority')}</option>
                                                                             </select>
                                                                         </td>
@@ -2369,6 +2421,32 @@
                                                     })}
                                                 </tbody>
                                             </table>
+                                        </div>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                                                <div className="flex items-center gap-2 text-slate-800 font-semibold mb-1"><Info size={16}/> {t('rules_title')}</div>
+                                                <p className="text-xs text-slate-500 mb-3">{t('rules_desc')}</p>
+                                                <ul className="space-y-2 text-sm text-slate-700">
+                                                    {[t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_evening_only'), t('rule_night_only'), t('rule_standby_only'), t('rule_priority'), t('rule_standby')].map((item, idx) => (
+                                                        <li key={idx} className="flex items-start gap-2">
+                                                            <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-indigo-500"></span>
+                                                            <span>{item}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div className="bg-white rounded-lg border border-amber-200 shadow-sm p-4">
+                                                <div className="flex items-center gap-2 text-amber-800 font-semibold mb-1"><AlertTriangle size={16}/> {t('warning_rules_title')}</div>
+                                                <p className="text-xs text-slate-500 mb-3">{t('warning_rules_desc')}</p>
+                                                <ul className="space-y-2 text-sm text-slate-700">
+                                                    {[t('warning_imbalance'), t('warning_three_day'), t('warning_violation_streak'), t('warning_violation_rest')].map((item, idx) => (
+                                                        <li key={idx} className="flex items-start gap-2">
+                                                            <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-500"></span>
+                                                            <span>{item}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
