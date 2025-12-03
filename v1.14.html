@@ -13,6 +13,21 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/glpk.js@0.23.0/dist/glpk.min.js"></script>
+    <script>
+        window.ilpSolverReady = (async () => {
+            try {
+                if (typeof window.GLPK === 'function') {
+                    return await window.GLPK();
+                }
+                if (window.GLPK) return window.GLPK;
+                if (window.glpk) return window.glpk;
+            } catch (err) {
+                console.error('Unable to initialize GLPK', err);
+            }
+            return null;
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -51,6 +66,14 @@
                 p21: "2 Work, 1 Rest",
                 phybrid: "Hybrid 2-1 / 1-1",
                 p211: "2 Work, 1 Standby, 1 Rest",
+                pcustom: "Custom pattern",
+                custom_config: "Custom pattern settings",
+                window_length: "Window length",
+                max_work_window: "Max work in window",
+                max_standby_window: "Max standby in window",
+                min_rest_window: "Min rest in window",
+                max_consecutive_work: "Max consecutive work days",
+                max_consecutive_standby: "Max consecutive standby days",
                 generate: "Generate New",
                 balancing: "Balancing...",
                 clear: "Clear",
@@ -198,6 +221,8 @@
                 rules_title: "Rules & Warnings",
                 rules_desc: "Quick reminders about the scheduling logic and what triggers alerts.",
                 rule_single_shift: "Each person can take only one work or standby assignment per day.",
+                infeasible_schedule: "No feasible schedule found with current constraints.",
+                solver_unavailable: "Solver not ready. Please try again.",
                 rule_unavailable: "Unavailable days will never be assigned.",
                 rule_morning_only: "Morning-only keeps them off evening or night shifts.",
                 rule_evening_only: "Evening-only keeps them off morning or night shifts.",
@@ -225,6 +250,14 @@
                 p21: "2 عمل، 1 راحة",
                 phybrid: "هجين 2-1 / 1-1",
                 p211: "2 عمل، 1 احتياط، 1 راحة",
+                pcustom: "نمط مخصص",
+                custom_config: "إعدادات النمط المخصص",
+                window_length: "طول النافذة",
+                max_work_window: "الحد الأقصى للعمل في النافذة",
+                max_standby_window: "الحد الأقصى للاحتياط في النافذة",
+                min_rest_window: "الحد الأدنى للراحة في النافذة",
+                max_consecutive_work: "أقصى أيام عمل متتالية",
+                max_consecutive_standby: "أقصى أيام احتياط متتالية",
                 generate: "إنشاء جدول جديد",
                 balancing: "جاري الموازنة...",
                 clear: "مسح",
@@ -385,7 +418,9 @@
                 warning_three_day: "شخص يعمل 3 أيام متتالية.",
                 warning_violation_streak: "شخص لديه أكثر من سلسلة عمل من 3 أيام.",
                 warning_violation_rest: "شخص يرتاح 3 أيام أو أكثر لمرات كثيرة.",
-                warning_unfilled_detail: "نقص تغطية: {shift} بتاريخ {date} ناقص {count}"
+                warning_unfilled_detail: "نقص تغطية: {shift} بتاريخ {date} ناقص {count}",
+                infeasible_schedule: "لا يوجد جدول يلبي القيود الحالية.",
+                solver_unavailable: "المحلل غير جاهز، يرجى المحاولة لاحقًا."
             }
         };
 
@@ -433,6 +468,15 @@
             offCellColor: "#f8fafc",
             headerRowColor: "#ffffff",
             dateColumnColor: "#ffffff",
+        };
+
+        const DEFAULT_CUSTOM_PATTERN = {
+            windowLength: 4,
+            maxWorkInWindow: 2,
+            maxStandbyInWindow: 1,
+            minRestInWindow: 1,
+            maxConsecutiveWork: 2,
+            maxConsecutiveStandby: 1,
         };
 
         // --- ICONS ---
@@ -506,13 +550,15 @@
             defaultRequirements[6].morning = 1;
 
             const [requirements, setRequirements] = useState(defaultRequirements);
-            const [activeTab, setActiveTab] = useState('schedule'); 
-            const [patternType, setPatternType] = useState('hybrid'); 
-            const [availability, setAvailability] = useState({}); 
-            const [preferences, setPreferences] = useState({}); 
+            const [activeTab, setActiveTab] = useState('schedule');
+            const [patternType, setPatternType] = useState('hybrid');
+            const [customPatternConfig, setCustomPatternConfig] = useState({ ...DEFAULT_CUSTOM_PATTERN });
+            const [availability, setAvailability] = useState({});
+            const [preferences, setPreferences] = useState({});
             const [isGenerating, setIsGenerating] = useState(false);
             const [bulkSelectState, setBulkSelectState] = useState({});
             const [highlightedEmp, setHighlightedEmp] = useState('');
+            const [solverMessage, setSolverMessage] = useState('');
             
             const [bulkMStart, setBulkMStart] = useState("08:00");
             const [bulkMEnd, setBulkMEnd] = useState("15:00");
@@ -605,6 +651,27 @@
                 return sanitized;
             };
 
+            const sanitizeCustomPatternConfig = (config) => {
+                const parsed = { ...DEFAULT_CUSTOM_PATTERN, ...(config || {}) };
+                const parseVal = (val) => {
+                    if (val === '' || val === null || val === undefined) return null;
+                    const num = Number(val);
+                    return Number.isFinite(num) ? Math.max(1, Math.round(num)) : null;
+                };
+                return {
+                    windowLength: Math.max(1, parseVal(parsed.windowLength) || DEFAULT_CUSTOM_PATTERN.windowLength),
+                    maxWorkInWindow: parseVal(parsed.maxWorkInWindow),
+                    maxStandbyInWindow: parseVal(parsed.maxStandbyInWindow),
+                    minRestInWindow: parseVal(parsed.minRestInWindow),
+                    maxConsecutiveWork: parseVal(parsed.maxConsecutiveWork),
+                    maxConsecutiveStandby: parseVal(parsed.maxConsecutiveStandby),
+                };
+            };
+
+            const updateCustomPatternField = (field, value) => {
+                setCustomPatternConfig(prev => sanitizeCustomPatternConfig({ ...prev, [field]: value }));
+            };
+
             const applyLoadedData = (data) => {
                 if (!data) return;
                 setEmployees(data.employees || employees);
@@ -623,6 +690,8 @@
                 setAvailability(data.availability || {});
                 setPreferences(data.preferences || {});
                 if (data.lang) setLang(data.lang);
+                if (data.patternType) setPatternType(data.patternType);
+                if (data.customPatternConfig) setCustomPatternConfig(sanitizeCustomPatternConfig(data.customPatternConfig));
 
                 const sanitizedExcel = sanitizeExcelConfig(data.excelConfig);
                 if (sanitizedExcel) setExcelConfig(sanitizedExcel);
@@ -657,10 +726,10 @@
                 try {
                     localStorage.setItem('scheduler_data_v1_9_3', JSON.stringify({
                         employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig,
-                        showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings
+                        showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, patternType, customPatternConfig
                     }));
                 } catch (e) {}
-            }, [employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig, showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings]);
+            }, [employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig, showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, patternType, customPatternConfig]);
 
             // ... (helper methods)
             const clearSchedule = () => {
@@ -766,7 +835,7 @@
             const saveData = () => {
                 const data = {
                     employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig,
-                    showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings,
+                    showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, patternType, customPatternConfig,
                     version: "1.9.4",
                     timestamp: new Date().toISOString()
                 };
@@ -1585,118 +1654,294 @@
                 );
             };
 
+            const getPatternConfig = () => {
+                if (patternType === '2-1-1') {
+                    return {
+                        windowLength: 4,
+                        maxWorkInWindow: 2,
+                        maxStandbyInWindow: 1,
+                        minRestInWindow: 1,
+                        maxConsecutiveWork: 2,
+                        maxConsecutiveStandby: 1,
+                    };
+                }
+                if (patternType === '2-2') {
+                    return {
+                        windowLength: 4,
+                        maxWorkInWindow: 2,
+                        minRestInWindow: 2,
+                        maxStandbyInWindow: null,
+                        maxConsecutiveWork: 3,
+                        maxConsecutiveStandby: null,
+                    };
+                }
+                if (patternType === '2-1') {
+                    return {
+                        windowLength: 3,
+                        maxWorkInWindow: 2,
+                        minRestInWindow: 1,
+                        maxStandbyInWindow: 1,
+                        maxConsecutiveWork: 2,
+                        maxConsecutiveStandby: 1,
+                    };
+                }
+                if (patternType === 'hybrid') {
+                    return {
+                        windowLength: 4,
+                        maxWorkInWindow: null,
+                        minRestInWindow: 1,
+                        maxStandbyInWindow: null,
+                        maxConsecutiveWork: 3,
+                        maxConsecutiveStandby: 2,
+                    };
+                }
+                if (patternType === 'custom') {
+                    return sanitizeCustomPatternConfig(customPatternConfig);
+                }
+                return sanitizeCustomPatternConfig(customPatternConfig);
+            };
+
+            const makeVarName = (empId, dayIndex, shift) => `x_e${empId}_d${dayIndex}_${shift}`;
+            const parseVarName = (name) => {
+                const match = name.match(/^x_e(\d+)_d(\d+)_(.+)$/);
+                if (!match) return null;
+                return { empId: Number(match[1]), dayIndex: Number(match[2]), shift: match[3] };
+            };
+
+            const getShiftRequirementsForDay = (day) => {
+                const req = requirements[day.getDay()] || {};
+                return {
+                    morning: req.morning || 0,
+                    night: req.night || 0,
+                    nightShift: enabledShifts.nightShift ? (req.nightShift || 0) : 0,
+                    standby: enabledShifts.standby ? (req.standby || 0) : 0,
+                };
+            };
+
+            const solveScheduleWithIlp = async () => {
+                setSolverMessage('');
+                const glpk = await window.ilpSolverReady;
+                if (!glpk) {
+                    setSolverMessage(t('solver_unavailable'));
+                    return;
+                }
+
+                const days = getCalculatedDays();
+                if (!days.length) {
+                    setSchedule({});
+                    return;
+                }
+
+                const patternConfig = getPatternConfig();
+                const totalDays = days.length;
+                const workShifts = ['morning', 'night'];
+                if (enabledShifts.nightShift) workShifts.push('nightShift');
+                const standbyEnabled = enabledShifts.standby;
+                const allShifts = [...workShifts];
+                if (standbyEnabled) allShifts.push('standby');
+
+                const coverageVars = {};
+                const empDayVars = {};
+                const workVars = {};
+                const standbyVars = {};
+                const fairnessVars = {};
+                const binaries = new Set();
+                const bounds = [{ name: 'Z', type: glpk.GLP_LO, lb: 0, ub: 0 }];
+                const constraints = [];
+
+                const allRequirements = days.map(getShiftRequirementsForDay);
+                employees.forEach(emp => {
+                    empDayVars[emp.id] = Array(totalDays).fill(null).map(() => []);
+                    workVars[emp.id] = Array(totalDays).fill(null).map(() => []);
+                    standbyVars[emp.id] = Array(totalDays).fill(null);
+                    fairnessVars[emp.id] = [];
+                });
+
+                const getAllowedShiftsForAvailability = (avail, reqs) => {
+                    if (avail === 'unavailable') return [];
+                    if (avail === 'standby_only') return standbyEnabled && reqs.standby > 0 ? ['standby'] : [];
+                    if (avail === 'morning_only') return reqs.morning > 0 ? ['morning'] : [];
+                    if (avail === 'evening_only') return reqs.night > 0 ? ['night'] : [];
+                    if (avail === 'night_only') return enabledShifts.nightShift && reqs.nightShift > 0 ? ['nightShift'] : [];
+                    return allShifts.filter(shift => (reqs[shift] || 0) > 0);
+                };
+
+                days.forEach((day, di) => {
+                    const dKey = formatDateKey(day);
+                    const reqs = allRequirements[di];
+                    allShifts.forEach(shift => {
+                        if (reqs[shift] > 0) coverageVars[`${di}_${shift}`] = [];
+                    });
+
+                    employees.forEach(emp => {
+                        const avail = availability[emp.id]?.[dKey];
+                        const allowedShifts = getAllowedShiftsForAvailability(avail, reqs);
+                        allowedShifts.forEach(shift => {
+                            const varName = makeVarName(emp.id, di, shift);
+                            binaries.add(varName);
+                            fairnessVars[emp.id].push(varName);
+                            empDayVars[emp.id][di].push(varName);
+                            if (workShifts.includes(shift)) workVars[emp.id][di].push(varName);
+                            if (shift === 'standby') standbyVars[emp.id][di] = varName;
+                            if (reqs[shift] > 0) coverageVars[`${di}_${shift}`]?.push(varName);
+                        });
+                    });
+                });
+
+                Object.entries(coverageVars).forEach(([key, vars]) => {
+                    const [dayIndex, shift] = key.split('_');
+                    const req = allRequirements[Number(dayIndex)][shift] || 0;
+                    constraints.push({
+                        name: `cov_${key}`,
+                        vars: vars.map(v => ({ name: v, coeff: 1 })),
+                        bnds: { type: glpk.GLP_FX, lb: req, ub: req }
+                    });
+                });
+
+                employees.forEach(emp => {
+                    empDayVars[emp.id].forEach((vars, di) => {
+                        if (vars.length > 0) {
+                            constraints.push({
+                                name: `one_per_day_e${emp.id}_d${di}`,
+                                vars: vars.map(v => ({ name: v, coeff: 1 })),
+                                bnds: { type: glpk.GLP_UP, ub: 1, lb: 0 }
+                            });
+                        }
+                    });
+                });
+
+                const windowLength = Math.max(1, Math.min(patternConfig.windowLength || 1, totalDays));
+                const addWindowConstraint = (name, vars, bound) => {
+                    constraints.push({ name, vars: vars.map(v => ({ name: v, coeff: 1 })), bnds: { type: glpk.GLP_UP, ub: bound } });
+                };
+
+                employees.forEach(emp => {
+                    for (let start = 0; start <= totalDays - windowLength; start++) {
+                        const workWindowVars = [];
+                        const standbyWindowVars = [];
+                        for (let offset = 0; offset < windowLength; offset++) {
+                            workWindowVars.push(...(workVars[emp.id][start + offset] || []));
+                            const standbyVar = standbyVars[emp.id][start + offset];
+                            if (standbyVar) standbyWindowVars.push(standbyVar);
+                        }
+                        if (patternConfig.maxWorkInWindow !== null && patternConfig.maxWorkInWindow !== undefined) {
+                            addWindowConstraint(`work_window_e${emp.id}_s${start}`, workWindowVars, patternConfig.maxWorkInWindow);
+                        }
+                        if (patternConfig.maxStandbyInWindow !== null && patternConfig.maxStandbyInWindow !== undefined) {
+                            addWindowConstraint(`standby_window_e${emp.id}_s${start}`, standbyWindowVars, patternConfig.maxStandbyInWindow);
+                        }
+                        if (patternConfig.minRestInWindow !== null && patternConfig.minRestInWindow !== undefined) {
+                            const restUpperBound = windowLength - patternConfig.minRestInWindow;
+                            const combined = [...workWindowVars, ...standbyWindowVars];
+                            constraints.push({
+                                name: `rest_window_e${emp.id}_s${start}`,
+                                vars: combined.map(v => ({ name: v, coeff: 1 })),
+                                bnds: { type: glpk.GLP_UP, ub: restUpperBound }
+                            });
+                        }
+                    }
+
+                    if (patternConfig.maxConsecutiveWork !== null && patternConfig.maxConsecutiveWork !== undefined) {
+                        const limit = patternConfig.maxConsecutiveWork;
+                        for (let start = 0; start <= totalDays - (limit + 1); start++) {
+                            const vars = [];
+                            for (let offset = 0; offset <= limit; offset++) {
+                                vars.push(...(workVars[emp.id][start + offset] || []));
+                            }
+                            constraints.push({
+                                name: `cons_work_e${emp.id}_s${start}`,
+                                vars: vars.map(v => ({ name: v, coeff: 1 })),
+                                bnds: { type: glpk.GLP_UP, ub: limit }
+                            });
+                        }
+                    }
+
+                    if (patternConfig.maxConsecutiveStandby !== null && patternConfig.maxConsecutiveStandby !== undefined) {
+                        const limit = patternConfig.maxConsecutiveStandby;
+                        for (let start = 0; start <= totalDays - (limit + 1); start++) {
+                            const vars = [];
+                            for (let offset = 0; offset <= limit; offset++) {
+                                const varName = standbyVars[emp.id][start + offset];
+                                if (varName) vars.push(varName);
+                            }
+                            constraints.push({
+                                name: `cons_standby_e${emp.id}_s${start}`,
+                                vars: vars.map(v => ({ name: v, coeff: 1 })),
+                                bnds: { type: glpk.GLP_UP, ub: limit }
+                            });
+                        }
+                    }
+                });
+
+                employees.forEach(emp => {
+                    const vars = fairnessVars[emp.id].map(v => ({ name: v, coeff: 1 }));
+                    if (vars.length > 0) {
+                        vars.push({ name: 'Z', coeff: -1 });
+                        constraints.push({
+                            name: `fair_e${emp.id}`,
+                            vars,
+                            bnds: { type: glpk.GLP_UP, ub: 0 }
+                        });
+                    }
+                });
+
+                const model = {
+                    name: 'shift_schedule',
+                    objective: {
+                        direction: glpk.GLP_MIN,
+                        name: 'obj',
+                        vars: [{ name: 'Z', coeff: 1 }],
+                    },
+                    subjectTo: constraints,
+                    binaries: Array.from(binaries),
+                    bounds,
+                };
+
+                let result;
+                try {
+                    const msgLevel = glpk.GLP_MSG_OFF ?? 0;
+                    result = glpk.solve(model, { msgLevel });
+                } catch (error) {
+                    console.error('Solver error', error);
+                    setSolverMessage(t('err_gen'));
+                    return;
+                }
+
+                const status = result?.result?.status ?? result?.status;
+                const statusText = (result?.result?.statusText || '').toString().toLowerCase();
+                const feasibleStatuses = [glpk.GLP_OPT, glpk.GLP_FEAS, glpk.GLP_MIP].filter(v => v !== undefined);
+                const textFeasible = ['optimal', 'feasible', 'mip optimal', 'mip feasible'].some(key => statusText.includes(key));
+                if ((feasibleStatuses.length && !feasibleStatuses.includes(status)) && !textFeasible) {
+                    setSolverMessage(t('infeasible_schedule'));
+                    return;
+                }
+
+                const solutionVars = result.vars || {};
+                const newSchedule = {};
+                days.forEach((day, di) => {
+                    const dKey = formatDateKey(day);
+                    newSchedule[dKey] = { morning: [], night: [], nightShift: [], standby: [] };
+                });
+
+                Object.entries(solutionVars).forEach(([name, value]) => {
+                    if (value >= 0.5 && name.startsWith('x_')) {
+                        const parsed = parseVarName(name);
+                        if (parsed) {
+                            const dKey = formatDateKey(days[parsed.dayIndex]);
+                            if (newSchedule[dKey]) newSchedule[dKey][parsed.shift]?.push(parsed.empId);
+                        }
+                    }
+                });
+
+                setSchedule(newSchedule);
+            };
+
             const generateSchedule = async () => {
                 setIsGenerating(true);
-                setTimeout(() => {
-                    try {
-                        const days = getCalculatedDays();
-                        const newSchedule = {}; 
-                        let empState = {};
-                        employees.forEach(e => { empState[e.id] = { consecutiveWork: 0, daysResting: 10, consecutiveStandby: 0, totalShifts: 0, threeDayWorkStreakCount: 0, longRestCount: 0 }; });
-
-                        days.forEach(day => {
-                            const dKey = formatDateKey(day);
-                            const dayOfWeek = day.getDay();
-                            const req = requirements[dayOfWeek];
-                            newSchedule[dKey] = { morning: [], night: [], nightShift: [], standby: [] };
-
-                            const maxShifts = Math.max(...Object.values(empState).map(s => s.totalShifts));
-
-                            const getCandidateScore = (empId, shiftType) => {
-                                const state = empState[empId];
-                                const pref = preferences[empId] || 'neutral';
-                                const avail = availability[empId]?.[dKey];
-
-                                if (!enabledShifts.nightShift && avail === 'night_only') return -100000;
-                                if (!enabledShifts.standby && avail === 'standby_only') return -100000;
-                                if (avail === 'unavailable') return -100000;
-                                if (avail === 'standby_only' && shiftType !== 'standby') return -100000;
-                                if (avail === 'evening_only' && shiftType !== 'night') return -100000;
-                                if (avail === 'night_only' && shiftType !== 'nightShift') return -100000;
-                                if ((shiftType === 'night' || shiftType === 'nightShift') && avail === 'morning_only') return -100000;
-                                
-                                const s = newSchedule[dKey];
-                                const alreadyWorkingToday = s.morning.includes(empId) || s.night.includes(empId) || s.nightShift.includes(empId);
-                                const alreadyStandbyToday = s.standby.includes(empId);
-                                if (alreadyWorkingToday || alreadyStandbyToday) return -100000;
-
-                                let score = 1000 + (Math.random() * 20 - 10);
-                                const restNeeded = patternType === '2-2' ? 2 : 1;
-                                const isWorkShift = shiftType === 'morning' || shiftType === 'night' || shiftType === 'nightShift';
-
-                                if (isWorkShift && (maxShifts - state.totalShifts >= 2)) score += 15000;
-                                if (avail === 'priority') score += 20000;
-                                if (avail === 'standby_only' && shiftType === 'standby') score += 12000;
-
-                                if (patternType === 'hybrid') {
-                                    if(isWorkShift) { 
-                                        if (state.consecutiveWork === 0) { if (state.daysResting >= 1) score += 5000; if (state.daysResting >= 2) score += 8000; } 
-                                        else if (state.consecutiveWork === 1) score += 3000; 
-                                        else if (state.consecutiveWork >= 2) { score -= 5000; if (state.consecutiveWork >= 3) score -= 50000; }
-                                    }
-                                } else if (patternType === '2-1-1' && enabledShifts.standby) {
-                                    if (isWorkShift) {
-                                        if (state.consecutiveWork >= 2) return -60000; 
-                                        if (state.consecutiveStandby > 0) score -= 50000; 
-                                        if (state.daysResting > 0) score += 20000; 
-                                        if (state.consecutiveWork === 1) score += 10000; 
-                                    } else if (shiftType === 'standby') {
-                                        if (state.consecutiveWork === 2) score += 50000; 
-                                        else if (state.consecutiveWork === 1) score -= 10000; 
-                                        else if (state.consecutiveWork === 0) score -= 50000; 
-                                        if (state.consecutiveStandby > 0) return -60000; 
-                                        if (state.daysResting > 0) score -= 40000; 
-                                    }
-                                } else { 
-                                    if (isWorkShift) {
-                                        if (state.consecutiveWork === 1) score += 5000; 
-                                        else if (state.consecutiveWork >= 2) { if (state.threeDayWorkStreakCount >= 1) score -= 100000; else score -= 5000; }
-                                        if (state.daysResting >= 2) { if (state.longRestCount >= 1) score += 12000; else score -= 4000; } else if (state.daysResting < restNeeded) score -= 4000;
-                                    }
-                                }
-                                if (avail === 'evening_only' && shiftType === 'night') score += 5000;
-                                if (avail === 'night_only' && shiftType === 'nightShift') score += 5000;
-                                if (avail === 'morning_only' && shiftType === 'morning') score += 5000;
-                                if (isWorkShift) score -= (state.totalShifts * 50); 
-                                if (shiftType === 'night' || shiftType === 'nightShift') { if (pref === 'night') score += 200; else if (pref === 'morning') score -= 50; } 
-                                else if (shiftType === 'morning') { if (pref === 'morning') score += 200; else if (pref === 'night') score -= 50; }
-                                return score;
-                            };
-
-                            const assignShift = (shiftType, countNeeded) => {
-                                for (let i = 0; i < countNeeded; i++) {
-                                    let candidates = employees.map(e => ({ id: e.id, score: getCandidateScore(e.id, shiftType) }));
-                                    let validCandidates = candidates.filter(c => c.score > -2000); 
-                                    if (validCandidates.length === 0) validCandidates = candidates.filter(c => c.score > -90000);
-                                    if (validCandidates.length > 0) {
-                                        validCandidates.sort((a, b) => b.score - a.score);
-                                        const chosenId = validCandidates[0].id;
-                                        newSchedule[dKey][shiftType].push(chosenId);
-                                        if (shiftType !== 'standby') empState[chosenId].totalShifts++;
-                                    }
-                                }
-                            };
-                            assignShift('nightShift', enabledShifts.nightShift ? req.nightShift : 0);
-                            assignShift('night', req.night); 
-                            assignShift('morning', req.morning);
-                            assignShift('standby', enabledShifts.standby ? req.standby : 0);
-
-                            employees.forEach(e => {
-                                const s = newSchedule[dKey];
-                                const worked = s.morning.includes(e.id) || s.night.includes(e.id) || (s.nightShift||[]).includes(e.id);
-                                const onStandby = (s.standby || []).includes(e.id);
-                                if (worked) { 
-                                    empState[e.id].consecutiveWork++; 
-                                    if (empState[e.id].daysResting >= 3) empState[e.id].longRestCount++;
-                                    empState[e.id].daysResting = 0; empState[e.id].consecutiveStandby = 0;
-                                    if (empState[e.id].consecutiveWork === 3) empState[e.id].threeDayWorkStreakCount++;
-                                } else if (onStandby && enabledShifts.standby) { empState[e.id].consecutiveWork = 0; empState[e.id].daysResting = 0; empState[e.id].consecutiveStandby++; }
-                                else { empState[e.id].consecutiveWork = 0; empState[e.id].daysResting++; empState[e.id].consecutiveStandby = 0; }
-                            });
-                        });
-                        setSchedule(newSchedule);
-                    } catch (error) { console.error(error); alert(t('err_gen')); } finally { setIsGenerating(false); }
-                }, 100);
+                try {
+                    await solveScheduleWithIlp();
+                } catch (error) { console.error(error); alert(t('err_gen')); }
+                finally { setIsGenerating(false); }
             };
 
             const stats = useMemo(() => {
@@ -1856,8 +2101,40 @@
                                         <option value="2-2">{t('p22')}</option>
                                         <option value="2-1">{t('p21')}</option>
                                         {enabledShifts.standby && <option value="2-1-1">{t('p211')}</option>}
+                                        <option value="custom">{t('pcustom')}</option>
                                     </select>
                                 </div>
+                                {patternType === 'custom' && (
+                                    <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                                        <div className="text-xs font-semibold text-slate-600">{t('custom_config')}</div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <label className="flex flex-col gap-1">
+                                                <span className="text-[11px] text-slate-500">{t('window_length')}</span>
+                                                <input type="number" min="1" max="31" value={customPatternConfig.windowLength ?? ''} onChange={(e)=>updateCustomPatternField('windowLength', e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-xs" />
+                                            </label>
+                                            <label className="flex flex-col gap-1">
+                                                <span className="text-[11px] text-slate-500">{t('max_work_window')}</span>
+                                                <input type="number" min="1" max="31" value={customPatternConfig.maxWorkInWindow ?? ''} onChange={(e)=>updateCustomPatternField('maxWorkInWindow', e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-xs" placeholder="-" />
+                                            </label>
+                                            <label className="flex flex-col gap-1">
+                                                <span className="text-[11px] text-slate-500">{t('max_standby_window')}</span>
+                                                <input type="number" min="1" max="31" value={customPatternConfig.maxStandbyInWindow ?? ''} onChange={(e)=>updateCustomPatternField('maxStandbyInWindow', e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-xs" placeholder="-" />
+                                            </label>
+                                            <label className="flex flex-col gap-1">
+                                                <span className="text-[11px] text-slate-500">{t('min_rest_window')}</span>
+                                                <input type="number" min="1" max="31" value={customPatternConfig.minRestInWindow ?? ''} onChange={(e)=>updateCustomPatternField('minRestInWindow', e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-xs" placeholder="-" />
+                                            </label>
+                                            <label className="flex flex-col gap-1">
+                                                <span className="text-[11px] text-slate-500">{t('max_consecutive_work')}</span>
+                                                <input type="number" min="1" max="31" value={customPatternConfig.maxConsecutiveWork ?? ''} onChange={(e)=>updateCustomPatternField('maxConsecutiveWork', e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-xs" placeholder="-" />
+                                            </label>
+                                            <label className="flex flex-col gap-1">
+                                                <span className="text-[11px] text-slate-500">{t('max_consecutive_standby')}</span>
+                                                <input type="number" min="1" max="31" value={customPatternConfig.maxConsecutiveStandby ?? ''} onChange={(e)=>updateCustomPatternField('maxConsecutiveStandby', e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-xs" placeholder="-" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="mb-4">
                                      <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-2 rounded border border-slate-200 hover:bg-slate-100 transition-colors">
                                          <input type="checkbox" checked={showWarnings} onChange={e=>setShowWarnings(e.target.checked)} className="w-4 h-4 text-red-500 rounded focus:ring-red-500" />
@@ -1952,7 +2229,13 @@
                                 })}
                                 </div>
                             </div>
-                            
+
+                            {solverMessage && (
+                                <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-amber-800 text-sm">
+                                    {solverMessage}
+                                </div>
+                            )}
+
                             {showWarnings && stats.issues.length > 0 && (
                                 <div className="bg-red-50 p-4 rounded-xl border border-red-100 max-h-60 overflow-auto warnings-scroll">
                                     <h3 className="font-semibold text-red-800 mb-2 flex items-center gap-2 text-sm sticky top-0 bg-red-50"><AlertTriangle size={16}/> {t('warnings')} ({stats.issues.length})</h3>
