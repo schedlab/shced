@@ -13,77 +13,31 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script>
+    <script type="module">
         window.ilpSolverReady = (async () => {
             const candidateSources = [
-                'https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/dist/glpk.min.js',
-                'https://unpkg.com/glpk.js@4.0.2/dist/glpk.min.js',
+                'https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/dist/glpk.esm.js',
+                'https://unpkg.com/glpk.js@4.0.2/dist/glpk.esm.js',
             ];
 
-            let factorySource = null;
-
-            const tryLoadSequentially = async () => {
-                const previousModule = window.module;
-                const hadModule = Object.prototype.hasOwnProperty.call(window, 'module');
-                const applyModuleShim = () => {
-                    if (!hadModule && typeof window.module === 'undefined') {
-                        window.module = { exports: {} };
-                    }
-                };
-                const restoreModule = () => {
-                    if (!hadModule) {
-                        delete window.module;
-                    } else {
-                        window.module = previousModule;
-                    }
-                };
-                const hasFactory = () => Boolean(
-                    window.GLPK ||
-                    window.glpk ||
-                    (window.module && window.module.exports && (window.module.exports.GLPK || window.module.exports.glpk || window.module.exports))
-                );
-
-                for (const src of candidateSources) {
-                    if (hasFactory()) return true;
-                    applyModuleShim();
+            for (const src of candidateSources) {
+                try {
                     // eslint-disable-next-line no-await-in-loop
-                    const loaded = await new Promise((resolve) => {
-                        const script = document.createElement('script');
-                        script.src = src;
-                        script.async = true;
-                        script.onload = () => resolve(true);
-                        script.onerror = () => resolve(false);
-                        document.head.appendChild(script);
-                    });
-                    const moduleExports = window.module && window.module.exports ? (window.module.exports.GLPK || window.module.exports.glpk || window.module.exports) : null;
-                    if (moduleExports && !window.GLPK && !window.glpk) {
-                        window.glpk = moduleExports;
+                    const mod = await import(src);
+                    const factory = (mod && (mod.default || mod.GLPK || mod.glpk)) || mod;
+                    if (!factory) continue;
+                    const basePath = src.substring(0, src.lastIndexOf('/') + 1);
+                    if (typeof factory === 'function') {
+                        return await factory({ locateFile: (file) => `${basePath}${file}` });
                     }
-                    const available = hasFactory();
-                    if (loaded && available) {
-                        factorySource = src;
-                        restoreModule();
-                        return true;
+                    if (factory && typeof factory.default === 'function') {
+                        return await factory.default({ locateFile: (file) => `${basePath}${file}` });
                     }
-                    restoreModule();
+                } catch (err) {
+                    console.warn('Failed to load GLPK from', src, err);
                 }
-                return false;
-            };
-
-            await tryLoadSequentially();
-            try {
-                const factory = window.GLPK || window.glpk || (window.module && window.module.exports && (window.module.exports.GLPK || window.module.exports.glpk || window.module.exports));
-                if (!factory) return null;
-                if (typeof factory === 'function') {
-                    const basePath = factorySource ? factorySource.substring(0, factorySource.lastIndexOf('/') + 1) : '';
-                    return await factory({
-                        locateFile: (file) => `${basePath}${file}`,
-                    });
-                }
-                return factory;
-            } catch (err) {
-                console.error('Unable to initialize GLPK', err);
             }
+            console.error('Unable to initialize GLPK: no sources succeeded');
             return null;
         })();
     </script>
