@@ -5,55 +5,130 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scheduler V1.9.4</title>
     
-    <link rel="stylesheet" href="./libs/tailwind.min.css" onerror="this.onerror=null; this.href='https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css'">
+    <link id="tailwind-local" rel="stylesheet" href="./libs/tailwind.min.css">
 
-    <script crossorigin src="./libs/react.production.min.js" onerror="this.onerror=null; this.src='https://unpkg.com/react@18/umd/react.development.js'"></script>
-    <script crossorigin src="./libs/react-dom.production.min.js" onerror="this.onerror=null; this.src='https://unpkg.com/react-dom@18/umd/react-dom.development.js'"></script>
-    <script src="./libs/babel.min.js" onerror="this.onerror=null; this.src='https://unpkg.com/@babel/standalone/babel.min.js'"></script>
+    <script id="react-local" crossorigin src="./libs/react.production.min.js"></script>
+    <script id="reactdom-local" crossorigin src="./libs/react-dom.production.min.js"></script>
+    <script id="babel-local" src="./libs/babel.min.js"></script>
 
-    <script src="./libs/exceljs.min.js" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'"></script>
-    <script src="./libs/FileSaver.min.js" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js'"></script>
+    <script id="exceljs-local" src="./libs/exceljs.min.js"></script>
+    <script id="filesaver-local" src="./libs/FileSaver.min.js"></script>
 
     <script>
         if (window.location.protocol === 'file:') {
             console.warn('Running from file:// may block WebAssembly. Please launch via StartScheduler.bat or a local HTTP server.');
         }
     </script>
+    <script>
+        (function ensureDependencies() {
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = false;
+                s.onload = () => resolve(true);
+                s.onerror = () => reject(new Error(src));
+                document.head.appendChild(s);
+            });
+
+            const loadStyle = (href) => new Promise((resolve) => {
+                const l = document.createElement('link');
+                l.rel = 'stylesheet';
+                l.href = href;
+                l.onload = () => resolve(true);
+                l.onerror = () => resolve(false);
+                document.head.appendChild(l);
+            });
+
+            const withFallbacks = async (check, fallbacks) => {
+                for (const src of fallbacks) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        await loadScript(src);
+                        if (check()) return true;
+                    } catch (err) {
+                        console.warn('Fallback failed for', src);
+                    }
+                }
+                return check();
+            };
+
+            const ensureReact = () => withFallbacks(() => !!window.React, [
+                'https://unpkg.com/react@18/umd/react.production.min.js',
+                'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js',
+            ]);
+
+            const ensureReactDom = () => withFallbacks(() => !!window.ReactDOM, [
+                'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+                'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js',
+            ]);
+
+            const ensureBabel = () => withFallbacks(() => !!window.Babel, [
+                'https://unpkg.com/@babel/standalone/babel.min.js',
+                'https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js',
+            ]);
+
+            const ensureExcel = () => withFallbacks(() => !!window.ExcelJS, [
+                'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+            ]);
+
+            const ensureFileSaver = () => withFallbacks(() => !!window.saveAs, [
+                'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js',
+            ]);
+
+            const ensureTailwind = () => loadStyle('https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css');
+
+            ensureTailwind();
+            ensureReact();
+            ensureReactDom();
+            ensureBabel();
+            ensureExcel();
+            ensureFileSaver();
+        })();
+    </script>
     <script type="module">
         // Prefer local ESM bundles for offline use; gracefully fallback to CDNs when absent.
         window.ilpSolverReady = (async () => {
+            const moduleShim = window.module || { exports: {} };
+            window.module = moduleShim;
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve(src);
+                s.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(s);
+            });
+
             const localBase = new URL('./libs/', window.location.href).toString();
             const candidateSources = [
-                `${localBase}glpk.esm.js`,
-                `${localBase}glpk.mjs`,
-                'https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/dist/glpk.esm.js',
-                'https://unpkg.com/glpk.js@4.0.2/dist/glpk.esm.js',
+                `${localBase}glpk.min.js`,
+                `${localBase}glpk.js`,
+                'https://cdn.jsdelivr.net/npm/glpk.js@4/dist/glpk.min.js',
+                'https://cdn.jsdelivr.net/npm/glpk.js/dist/glpk.min.js',
+                'https://unpkg.com/glpk.js@4/dist/glpk.min.js',
+                'https://unpkg.com/glpk.js@latest/dist/glpk.min.js',
             ];
 
-            const attemptImport = async (src) => {
-                const mod = await import(src);
-                const factory = (mod && (mod.default || mod.GLPK || mod.glpk)) || mod;
-                if (!factory) return null;
-                const basePath = src.substring(0, src.lastIndexOf('/') + 1);
-                if (typeof factory === 'function') {
-                    return factory({ locateFile: (file) => `${basePath}${file}` });
-                }
-                if (factory && typeof factory.default === 'function') {
-                    return factory.default({ locateFile: (file) => `${basePath}${file}` });
-                }
-                return factory;
-            };
-
+            let lastError = null;
             for (const src of candidateSources) {
                 try {
                     // eslint-disable-next-line no-await-in-loop
-                    const maybe = await attemptImport(src);
-                    if (maybe) return await maybe;
+                    await loadScript(src);
+                    const factory = window.GLPK || window.glpk || (window.module && window.module.exports);
+                    if (!factory) throw new Error('GLPK factory not found');
+                    const basePath = src.substring(0, src.lastIndexOf('/') + 1);
+                    const instance = await (typeof factory === 'function'
+                        ? factory({ locateFile: (file) => `${basePath}${file}` })
+                        : factory.default && typeof factory.default === 'function'
+                            ? factory.default({ locateFile: (file) => `${basePath}${file}` })
+                            : factory);
+                    if (instance) return instance;
                 } catch (err) {
+                    lastError = err;
                     console.warn('Failed to load GLPK from', src, err);
                 }
             }
-            console.error('Unable to initialize GLPK: no sources succeeded');
+            console.error('Unable to initialize GLPK: no sources succeeded', lastError);
             return null;
         })();
     </script>
