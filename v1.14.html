@@ -5,34 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scheduler V1.9.4</title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="./libs/tailwind.min.css" onerror="this.onerror=null; this.href='https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css'">
+
+    <script crossorigin src="./libs/react.production.min.js" onerror="this.onerror=null; this.src='https://unpkg.com/react@18/umd/react.development.js'"></script>
+    <script crossorigin src="./libs/react-dom.production.min.js" onerror="this.onerror=null; this.src='https://unpkg.com/react-dom@18/umd/react-dom.development.js'"></script>
+    <script src="./libs/babel.min.js" onerror="this.onerror=null; this.src='https://unpkg.com/@babel/standalone/babel.min.js'"></script>
+
+    <script src="./libs/exceljs.min.js" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'"></script>
+    <script src="./libs/FileSaver.min.js" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js'"></script>
+
+    <script>
+        if (window.location.protocol === 'file:') {
+            console.warn('Running from file:// may block WebAssembly. Please launch via StartScheduler.bat or a local HTTP server.');
+        }
+    </script>
     <script type="module">
+        // Prefer local ESM bundles for offline use; gracefully fallback to CDNs when absent.
         window.ilpSolverReady = (async () => {
+            const localBase = new URL('./libs/', window.location.href).toString();
             const candidateSources = [
+                `${localBase}glpk.esm.js`,
+                `${localBase}glpk.mjs`,
                 'https://cdn.jsdelivr.net/npm/glpk.js@4.0.2/dist/glpk.esm.js',
                 'https://unpkg.com/glpk.js@4.0.2/dist/glpk.esm.js',
             ];
 
+            const attemptImport = async (src) => {
+                const mod = await import(src);
+                const factory = (mod && (mod.default || mod.GLPK || mod.glpk)) || mod;
+                if (!factory) return null;
+                const basePath = src.substring(0, src.lastIndexOf('/') + 1);
+                if (typeof factory === 'function') {
+                    return factory({ locateFile: (file) => `${basePath}${file}` });
+                }
+                if (factory && typeof factory.default === 'function') {
+                    return factory.default({ locateFile: (file) => `${basePath}${file}` });
+                }
+                return factory;
+            };
+
             for (const src of candidateSources) {
                 try {
                     // eslint-disable-next-line no-await-in-loop
-                    const mod = await import(src);
-                    const factory = (mod && (mod.default || mod.GLPK || mod.glpk)) || mod;
-                    if (!factory) continue;
-                    const basePath = src.substring(0, src.lastIndexOf('/') + 1);
-                    if (typeof factory === 'function') {
-                        return await factory({ locateFile: (file) => `${basePath}${file}` });
-                    }
-                    if (factory && typeof factory.default === 'function') {
-                        return await factory.default({ locateFile: (file) => `${basePath}${file}` });
-                    }
+                    const maybe = await attemptImport(src);
+                    if (maybe) return await maybe;
                 } catch (err) {
                     console.warn('Failed to load GLPK from', src, err);
                 }
