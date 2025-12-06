@@ -515,8 +515,36 @@
                 morningStart: "08:00", morningEnd: "15:00",
                 nightStart: "15:00", nightEnd: "21:00",
                 nightShiftStart: "21:00", nightShiftEnd: "08:00",
-                standbyStart: "00:00", standbyEnd: "23:59" 
+                standbyStart: "00:00", standbyEnd: "23:59"
             });
+
+            const getShiftRequirement = (req, key) => {
+                const entry = req?.[key];
+                let startTime = req?.[`${key}Start`];
+                let endTime = req?.[`${key}End`];
+                let requiredCount = 0;
+
+                if (entry && typeof entry === 'object') {
+                    requiredCount = Number(entry.requiredCount ?? entry.count ?? entry.required ?? 0) || 0;
+                    startTime = entry.startTime || entry.start || startTime;
+                    endTime = entry.endTime || entry.end || endTime;
+                } else {
+                    requiredCount = Number(entry ?? 0) || 0;
+                }
+
+                return { requiredCount, startTime, endTime };
+            };
+
+            const normalizeRequirementsDay = (dayReq) => {
+                const normalized = { ...createDefaultDay(), ...dayReq };
+                ['morning', 'night', 'nightShift', 'standby'].forEach(key => {
+                    const details = getShiftRequirement(normalized, key);
+                    normalized[key] = details.requiredCount;
+                    if (details.startTime) normalized[`${key}Start`] = details.startTime;
+                    if (details.endTime) normalized[`${key}End`] = details.endTime;
+                });
+                return normalized;
+            };
 
             const defaultRequirements = {
                 0: createDefaultDay(), 1: createDefaultDay(), 2: createDefaultDay(),
@@ -567,9 +595,10 @@
                 const mergedReqs = { ...defaultRequirements };
                 if (incomingRequirements) {
                     Object.keys(incomingRequirements).forEach(key => {
-                        mergedReqs[key] = { ...mergedReqs[key], ...incomingRequirements[key] };
+                        mergedReqs[key] = normalizeRequirementsDay({ ...mergedReqs[key], ...incomingRequirements[key] });
                     });
                 }
+                Object.keys(mergedReqs).forEach(key => { mergedReqs[key] = normalizeRequirementsDay(mergedReqs[key]); });
                 return mergedReqs;
             };
 
@@ -831,9 +860,10 @@
                 const groups = {};
                 for(let i=0; i<7; i++) {
                     const req = requirements[i];
-                    if (!req[shiftKey] || req[shiftKey] === 0) continue;
-                    const s = req[`${shiftKey}Start`];
-                    const e = req[`${shiftKey}End`];
+                    const details = getShiftRequirement(req, shiftKey);
+                    if (!details.requiredCount) continue;
+                    const s = details.startTime;
+                    const e = details.endTime;
                     if(!s || !e) continue; 
                     const timeStr = `${formatTime12(s)} - ${formatTime12(e)}`;
                     if(!groups[timeStr]) groups[timeStr] = [];
@@ -1713,7 +1743,8 @@
                             };
 
                             activeShiftKeys.forEach(shiftKey => {
-                                const needed = req?.[shiftKey] || 0;
+                                const { requiredCount } = getShiftRequirement(req, shiftKey);
+                                const needed = requiredCount || 0;
                                 assignShift(shiftKey, needed);
                             });
 
@@ -1761,7 +1792,10 @@
                         employees.forEach(emp => { data[emp.id].rest++; data[emp.id].history.push(0); });
                         return;
                     }
-                    const shiftChecks = activeShiftKeys.map(key => ({ key, label: shiftStyles[key]?.label || key, required: req[key] || 0, enabled: key === 'standby' ? enabledShifts.standby : key === 'nightShift' ? enabledShifts.nightShift || key === 'nightShift' : true }));
+                    const shiftChecks = activeShiftKeys.map(key => {
+                        const { requiredCount } = getShiftRequirement(req, key);
+                        return { key, label: shiftStyles[key]?.label || key, required: requiredCount || 0, enabled: key === 'standby' ? enabledShifts.standby : key === 'nightShift' ? enabledShifts.nightShift || key === 'nightShift' : true };
+                    });
                     shiftChecks.forEach(check => {
                         const actual = (daySched[check.key] || []).length;
                         if (check.enabled && check.required > actual) {
@@ -2128,7 +2162,10 @@
                                                     let workers = [];
                                                     workShiftKeys.forEach(sh => { workers = [...workers, ...((s[sh]||[]))]; });
                                                     const offDuty = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id));
-                                                    let shiftsToRender = getActiveShiftKeys().map(key => ({ key, start: req?.[`${key}Start`], end: req?.[`${key}End`], meta: shiftStyles[key] || {} }));
+                                                    let shiftsToRender = getActiveShiftKeys().map(key => {
+                                                        const details = getShiftRequirement(req, key);
+                                                        return { key, start: details.startTime, end: details.endTime, requiredCount: details.requiredCount, meta: shiftStyles[key] || {} };
+                                                    });
 
                                                     // FIX: Add dynamic border width style
                                                     const cellStyle = { borderRightWidth: lineWeight, borderLeftWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' };
@@ -2155,7 +2192,7 @@
                                                                             if (sh.key === 'morning' && (avail === 'night_only' || avail === 'evening_only')) disabled = true;
                                                                             if (sh.key === 'night' && (avail === 'morning_only' || avail === 'night_only')) disabled = true;
                                                                             if (sh.key === 'nightShift' && (avail === 'morning_only' || avail === 'evening_only')) disabled = true;
-                                                                            if (req[sh.key] === 0 && !isSelected) return null;
+                                                                            if ((sh.requiredCount ?? 0) === 0 && !isSelected) return null;
 
                                                                             const isHighlighted = highlightedEmp == emp.id;
                                                                             const isDimmed = highlightedEmp && !isHighlighted;
@@ -2173,7 +2210,7 @@
                                                                             )
                                                                         })}
                                                                     </div>
-                                                                    <div className={`mt-1 text-center ${(s[sh.key]||[]).length !== req[sh.key] ? 'text-red-400 font-medium' : 'text-green-500 opacity-50'}`} style={{ fontSize: `${Math.max(8, viewSettings.cellFontSize - 2)}px`, color: (s[sh.key]||[]).length === req[sh.key] ? (sh.meta?.textColor || '#16a34a') : undefined }}>{(s[sh.key]||[]).length}/{req[sh.key]}</div>
+                                                                    <div className={`mt-1 text-center ${(s[sh.key]||[]).length !== sh.requiredCount ? 'text-red-400 font-medium' : 'text-green-500 opacity-50'}`} style={{ fontSize: `${Math.max(8, viewSettings.cellFontSize - 2)}px`, color: (s[sh.key]||[]).length === sh.requiredCount ? (sh.meta?.textColor || '#16a34a') : undefined }}>{(s[sh.key]||[]).length}/{sh.requiredCount}</div>
                                                                 </td>
                                                             ))}
                                                             <td className={`p-2 align-top ${hasUnfilled ? 'bg-red-50/60' : 'bg-slate-50/30'}`} style={cellStyle}>
