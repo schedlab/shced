@@ -481,6 +481,27 @@
             
             const [enabledShifts, setEnabledShifts] = useState({ nightShift: false, standby: false });
             const [showShiftTimes, setShowShiftTimes] = useState(true);
+
+            const [shiftStyles, setShiftStyles] = useState({
+                morning: { label: 'Morning', icon: '☀️', color: '#fef3c7', textColor: '#92400e', isRest: false, duration: 7 },
+                night: { label: 'Evening', icon: '🌆', color: '#e0e7ff', textColor: '#312e81', isRest: false, duration: 7 },
+                nightShift: { label: 'Night', icon: '🌙', color: '#ede9fe', textColor: '#4c1d95', isRest: false, duration: 10 },
+                standby: { label: 'Standby', icon: '🪫', color: '#cffafe', textColor: '#0f172a', isRest: false, duration: 8 },
+                off: { label: 'Rest Day', icon: '🌿', color: '#f1f5f9', textColor: '#475569', isRest: true, duration: 0 },
+            });
+
+            const [workingDays, setWorkingDays] = useState({ 0: true, 1: true, 2: true, 3: true, 4: true, 5: false, 6: false });
+            const [holidayDates, setHolidayDates] = useState([]);
+            const [newHoliday, setNewHoliday] = useState('');
+
+            const [patternRules, setPatternRules] = useState({
+                minDaysBeforeRest: 1,
+                minWorkBetweenRest: 1,
+                minConsecutiveWork: 1,
+                maxConsecutiveWork: 6,
+                minConsecutiveRest: 1,
+                maxConsecutiveRest: 3,
+            });
             const [showWarnings, setShowWarnings] = useState(true);
             
             // --- NEW: View Settings State ---
@@ -507,9 +528,8 @@
 
             const [requirements, setRequirements] = useState(defaultRequirements);
             const [activeTab, setActiveTab] = useState('schedule'); 
-            const [patternType, setPatternType] = useState('hybrid'); 
-            const [availability, setAvailability] = useState({}); 
-            const [preferences, setPreferences] = useState({}); 
+            const [availability, setAvailability] = useState({});
+            const [preferences, setPreferences] = useState({});
             const [isGenerating, setIsGenerating] = useState(false);
             const [bulkSelectState, setBulkSelectState] = useState({});
             const [highlightedEmp, setHighlightedEmp] = useState('');
@@ -623,6 +643,10 @@
                 setAvailability(data.availability || {});
                 setPreferences(data.preferences || {});
                 if (data.lang) setLang(data.lang);
+                if (data.shiftStyles) setShiftStyles(prev => ({ ...prev, ...data.shiftStyles }));
+                if (data.workingDays) setWorkingDays(prev => ({ ...prev, ...data.workingDays }));
+                if (data.holidayDates) setHolidayDates(data.holidayDates);
+                if (data.patternRules) setPatternRules(prev => ({ ...prev, ...data.patternRules }));
 
                 const sanitizedExcel = sanitizeExcelConfig(data.excelConfig);
                 if (sanitizedExcel) setExcelConfig(sanitizedExcel);
@@ -643,7 +667,7 @@
             // --- Effects ---
             useEffect(() => {
                 try {
-                    const saved = localStorage.getItem('scheduler_data_v1_9_3');
+                    const saved = localStorage.getItem('scheduler_data_v1_14_dynamic');
                     if (saved) {
                         applyLoadedData(JSON.parse(saved));
                     }
@@ -655,12 +679,12 @@
                 document.body.className = lang === 'ar' ? 'bg-slate-50 text-slate-900 rtl' : 'bg-slate-50 text-slate-900 ltr';
                 
                 try {
-                    localStorage.setItem('scheduler_data_v1_9_3', JSON.stringify({
+                    localStorage.setItem('scheduler_data_v1_14_dynamic', JSON.stringify({
                         employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig,
-                        showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings
+                        showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules
                     }));
                 } catch (e) {}
-            }, [employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig, showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings]);
+            }, [employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig, showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules]);
 
             // ... (helper methods)
             const clearSchedule = () => {
@@ -766,7 +790,7 @@
             const saveData = () => {
                 const data = {
                     employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig,
-                    showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings,
+                    showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules,
                     version: "1.9.4",
                     timestamp: new Date().toISOString()
                 };
@@ -1585,14 +1609,79 @@
                 );
             };
 
+            const getActiveShiftKeys = () => {
+                const base = ['morning', 'night'];
+                if (enabledShifts.nightShift) base.push('nightShift');
+                if (enabledShifts.standby) base.push('standby');
+                return base;
+            };
+
             const generateSchedule = async () => {
                 setIsGenerating(true);
                 setTimeout(() => {
                     try {
                         const days = getCalculatedDays();
-                        const newSchedule = {}; 
+                        const newSchedule = {};
+                        const holidaysSet = new Set(holidayDates || []);
+                        const activeShiftKeys = getActiveShiftKeys();
+
                         let empState = {};
-                        employees.forEach(e => { empState[e.id] = { consecutiveWork: 0, daysResting: 10, consecutiveStandby: 0, totalShifts: 0, threeDayWorkStreakCount: 0, longRestCount: 0 }; });
+                        employees.forEach(e => {
+                            empState[e.id] = { workStreak: 0, restStreak: 0, totalShifts: 0, standbyStreak: 0 };
+                        });
+
+                        const isWorkShift = (shiftType) => {
+                            const meta = shiftStyles[shiftType] || {};
+                            if (meta.isRest) return false;
+                            if (shiftType === 'standby') return false;
+                            return true;
+                        };
+
+                        const getCandidateScore = (empId, shiftType, dayKey, dayOfWeek) => {
+                            const state = empState[empId];
+                            const pref = preferences[empId] || 'neutral';
+                            const avail = availability[empId]?.[dayKey];
+                            const meta = shiftStyles[shiftType] || {};
+                            const workShift = isWorkShift(shiftType);
+
+                            if (avail === 'unavailable') return -100000;
+                            if (!enabledShifts.nightShift && avail === 'night_only') return -100000;
+                            if (!enabledShifts.standby && avail === 'standby_only') return -100000;
+                            if (avail === 'standby_only' && shiftType !== 'standby') return -100000;
+                            if (avail === 'evening_only' && shiftType !== 'night') return -100000;
+                            if (avail === 'night_only' && shiftType !== 'nightShift') return -100000;
+                            if ((shiftType === 'night' || shiftType === 'nightShift') && avail === 'morning_only') return -100000;
+                            if (avail && avail.startsWith('only_') && avail !== `only_${shiftType}`) return -100000;
+
+                            const s = newSchedule[dayKey];
+                            const alreadyWorkingToday = (s.morning || []).includes(empId) || (s.night || []).includes(empId) || (s.nightShift || []).includes(empId);
+                            const alreadyStandbyToday = (s.standby || []).includes(empId);
+                            if (alreadyWorkingToday || alreadyStandbyToday) return -100000;
+
+                            let score = 1000 + (Math.random() * 20 - 10);
+
+                            if (workShift && state.workStreak >= patternRules.maxConsecutiveWork) return -120000;
+                            if (state.restStreak > 0 && state.restStreak < patternRules.minConsecutiveRest) score -= 4000;
+                            if (state.restStreak >= patternRules.maxConsecutiveRest) score += 9000;
+                            if (workShift && state.workStreak < patternRules.minConsecutiveWork) score += 1200;
+                            if (state.workStreak < patternRules.minDaysBeforeRest) score += 800;
+                            if (state.workStreak >= patternRules.minWorkBetweenRest) score += 500;
+
+                            if (workShift && (avail === 'priority' || avail === `prefer_${shiftType}`)) score += 14000;
+                            if (avail === `avoid_${shiftType}`) score -= 4000;
+                            if (shiftType === 'standby' && state.standbyStreak > 0) score -= 8000;
+                            if (shiftType === 'standby' && avail === 'standby_only') score += 5000;
+
+                            if (workShift) score -= (state.totalShifts * 50);
+                            if (pref !== 'neutral' && pref === shiftType) score += 3200;
+                            else if (pref !== 'neutral' && pref !== shiftType) score -= 300;
+
+                            if (meta.duration && meta.duration > 10) score -= 300;
+                            if (meta.duration && meta.duration < 6) score += 300;
+
+                            if (!workingDays[dayOfWeek]) score -= 50000;
+                            return score;
+                        };
 
                         days.forEach(day => {
                             const dKey = formatDateKey(day);
@@ -1600,98 +1689,52 @@
                             const req = requirements[dayOfWeek];
                             newSchedule[dKey] = { morning: [], night: [], nightShift: [], standby: [] };
 
-                            const maxShifts = Math.max(...Object.values(empState).map(s => s.totalShifts));
-
-                            const getCandidateScore = (empId, shiftType) => {
-                                const state = empState[empId];
-                                const pref = preferences[empId] || 'neutral';
-                                const avail = availability[empId]?.[dKey];
-
-                                if (!enabledShifts.nightShift && avail === 'night_only') return -100000;
-                                if (!enabledShifts.standby && avail === 'standby_only') return -100000;
-                                if (avail === 'unavailable') return -100000;
-                                if (avail === 'standby_only' && shiftType !== 'standby') return -100000;
-                                if (avail === 'evening_only' && shiftType !== 'night') return -100000;
-                                if (avail === 'night_only' && shiftType !== 'nightShift') return -100000;
-                                if ((shiftType === 'night' || shiftType === 'nightShift') && avail === 'morning_only') return -100000;
-                                
-                                const s = newSchedule[dKey];
-                                const alreadyWorkingToday = s.morning.includes(empId) || s.night.includes(empId) || s.nightShift.includes(empId);
-                                const alreadyStandbyToday = s.standby.includes(empId);
-                                if (alreadyWorkingToday || alreadyStandbyToday) return -100000;
-
-                                let score = 1000 + (Math.random() * 20 - 10);
-                                const restNeeded = patternType === '2-2' ? 2 : 1;
-                                const isWorkShift = shiftType === 'morning' || shiftType === 'night' || shiftType === 'nightShift';
-
-                                if (isWorkShift && (maxShifts - state.totalShifts >= 2)) score += 15000;
-                                if (avail === 'priority') score += 20000;
-                                if (avail === 'standby_only' && shiftType === 'standby') score += 12000;
-
-                                if (patternType === 'hybrid') {
-                                    if(isWorkShift) { 
-                                        if (state.consecutiveWork === 0) { if (state.daysResting >= 1) score += 5000; if (state.daysResting >= 2) score += 8000; } 
-                                        else if (state.consecutiveWork === 1) score += 3000; 
-                                        else if (state.consecutiveWork >= 2) { score -= 5000; if (state.consecutiveWork >= 3) score -= 50000; }
-                                    }
-                                } else if (patternType === '2-1-1' && enabledShifts.standby) {
-                                    if (isWorkShift) {
-                                        if (state.consecutiveWork >= 2) return -60000; 
-                                        if (state.consecutiveStandby > 0) score -= 50000; 
-                                        if (state.daysResting > 0) score += 20000; 
-                                        if (state.consecutiveWork === 1) score += 10000; 
-                                    } else if (shiftType === 'standby') {
-                                        if (state.consecutiveWork === 2) score += 50000; 
-                                        else if (state.consecutiveWork === 1) score -= 10000; 
-                                        else if (state.consecutiveWork === 0) score -= 50000; 
-                                        if (state.consecutiveStandby > 0) return -60000; 
-                                        if (state.daysResting > 0) score -= 40000; 
-                                    }
-                                } else { 
-                                    if (isWorkShift) {
-                                        if (state.consecutiveWork === 1) score += 5000; 
-                                        else if (state.consecutiveWork >= 2) { if (state.threeDayWorkStreakCount >= 1) score -= 100000; else score -= 5000; }
-                                        if (state.daysResting >= 2) { if (state.longRestCount >= 1) score += 12000; else score -= 4000; } else if (state.daysResting < restNeeded) score -= 4000;
-                                    }
-                                }
-                                if (avail === 'evening_only' && shiftType === 'night') score += 5000;
-                                if (avail === 'night_only' && shiftType === 'nightShift') score += 5000;
-                                if (avail === 'morning_only' && shiftType === 'morning') score += 5000;
-                                if (isWorkShift) score -= (state.totalShifts * 50); 
-                                if (shiftType === 'night' || shiftType === 'nightShift') { if (pref === 'night') score += 200; else if (pref === 'morning') score -= 50; } 
-                                else if (shiftType === 'morning') { if (pref === 'morning') score += 200; else if (pref === 'night') score -= 50; }
-                                return score;
-                            };
+                            if (!workingDays[dayOfWeek] || holidaysSet.has(dKey)) {
+                                employees.forEach(e => {
+                                    empState[e.id].restStreak++;
+                                    empState[e.id].workStreak = 0;
+                                    empState[e.id].standbyStreak = 0;
+                                });
+                                return;
+                            }
 
                             const assignShift = (shiftType, countNeeded) => {
                                 for (let i = 0; i < countNeeded; i++) {
-                                    let candidates = employees.map(e => ({ id: e.id, score: getCandidateScore(e.id, shiftType) }));
-                                    let validCandidates = candidates.filter(c => c.score > -2000); 
+                                    let candidates = employees.map(e => ({ id: e.id, score: getCandidateScore(e.id, shiftType, dKey, dayOfWeek) }));
+                                    let validCandidates = candidates.filter(c => c.score > -2000);
                                     if (validCandidates.length === 0) validCandidates = candidates.filter(c => c.score > -90000);
                                     if (validCandidates.length > 0) {
                                         validCandidates.sort((a, b) => b.score - a.score);
                                         const chosenId = validCandidates[0].id;
                                         newSchedule[dKey][shiftType].push(chosenId);
-                                        if (shiftType !== 'standby') empState[chosenId].totalShifts++;
+                                        if (isWorkShift(shiftType)) empState[chosenId].totalShifts++;
                                     }
                                 }
                             };
-                            assignShift('nightShift', enabledShifts.nightShift ? req.nightShift : 0);
-                            assignShift('night', req.night); 
-                            assignShift('morning', req.morning);
-                            assignShift('standby', enabledShifts.standby ? req.standby : 0);
+
+                            activeShiftKeys.forEach(shiftKey => {
+                                const needed = req?.[shiftKey] || 0;
+                                assignShift(shiftKey, needed);
+                            });
 
                             employees.forEach(e => {
                                 const s = newSchedule[dKey];
-                                const worked = s.morning.includes(e.id) || s.night.includes(e.id) || (s.nightShift||[]).includes(e.id);
-                                const onStandby = (s.standby || []).includes(e.id);
-                                if (worked) { 
-                                    empState[e.id].consecutiveWork++; 
-                                    if (empState[e.id].daysResting >= 3) empState[e.id].longRestCount++;
-                                    empState[e.id].daysResting = 0; empState[e.id].consecutiveStandby = 0;
-                                    if (empState[e.id].consecutiveWork === 3) empState[e.id].threeDayWorkStreakCount++;
-                                } else if (onStandby && enabledShifts.standby) { empState[e.id].consecutiveWork = 0; empState[e.id].daysResting = 0; empState[e.id].consecutiveStandby++; }
-                                else { empState[e.id].consecutiveWork = 0; empState[e.id].daysResting++; empState[e.id].consecutiveStandby = 0; }
+                                const worked = activeShiftKeys.some(sh => (s[sh] || []).includes(e.id) && isWorkShift(sh));
+                                const standby = (s.standby || []).includes(e.id) && enabledShifts.standby && !shiftStyles.standby?.isRest;
+                                if (worked || standby) {
+                                    empState[e.id].workStreak++;
+                                    empState[e.id].restStreak = 0;
+                                    if (standby) empState[e.id].standbyStreak++;
+                                    else empState[e.id].standbyStreak = 0;
+                                } else {
+                                    if (empState[e.id].workStreak < patternRules.minWorkBetweenRest && empState[e.id].workStreak > 0) {
+                                        empState[e.id].restStreak += 0.5;
+                                    } else {
+                                        empState[e.id].restStreak++;
+                                    }
+                                    empState[e.id].workStreak = 0;
+                                    empState[e.id].standbyStreak = 0;
+                                }
                             });
                         });
                         setSchedule(newSchedule);
@@ -1706,17 +1749,19 @@
                 const criticalIssues = [];
                 const unfilledDays = new Set();
                 let grandTotal = 0;
-                employees.forEach(emp => { data[emp.id] = { total: 0, morning: 0, night: 0, nightShift: 0, standbyCount: 0, rest: 0, history: [] }; });
+                const holidaysSet = new Set(holidayDates || []);
+                employees.forEach(emp => { data[emp.id] = { total: 0, morning: 0, night: 0, nightShift: 0, standbyCount: 0, rest: 0, history: [], shifts: {} }; });
+                const activeShiftKeys = getActiveShiftKeys();
                 days.forEach(day => {
                     const dKey = formatDateKey(day);
                     const daySched = schedule[dKey] || { morning: [], night: [], nightShift: [], standby: [] };
                     const req = requirements[day.getDay()] || {};
-                    const shiftChecks = [
-                        { key: 'morning', label: t('morn'), required: req.morning || 0, enabled: true },
-                        { key: 'night', label: t('eve'), required: req.night || 0, enabled: true },
-                        { key: 'nightShift', label: t('night'), required: req.nightShift || 0, enabled: enabledShifts.nightShift },
-                        { key: 'standby', label: t('standby'), required: req.standby || 0, enabled: enabledShifts.standby }
-                    ];
+                    const isOffDay = holidaysSet.has(dKey) || !workingDays[day.getDay()];
+                    if (isOffDay) {
+                        employees.forEach(emp => { data[emp.id].rest++; data[emp.id].history.push(0); });
+                        return;
+                    }
+                    const shiftChecks = activeShiftKeys.map(key => ({ key, label: shiftStyles[key]?.label || key, required: req[key] || 0, enabled: key === 'standby' ? enabledShifts.standby : key === 'nightShift' ? enabledShifts.nightShift || key === 'nightShift' : true }));
                     shiftChecks.forEach(check => {
                         const actual = (daySched[check.key] || []).length;
                         if (check.enabled && check.required > actual) {
@@ -1731,13 +1776,18 @@
                         }
                     });
                     employees.forEach(emp => {
-                        const worked = daySched.morning.includes(emp.id) || daySched.night.includes(emp.id) || (daySched.nightShift||[]).includes(emp.id);
-                        const onStandby = (daySched.standby||[]).includes(emp.id);
+                        const worked = activeShiftKeys.some(sh => (daySched[sh] || []).includes(emp.id) && !shiftStyles[sh]?.isRest && sh !== 'standby');
+                        const onStandby = (daySched.standby||[]).includes(emp.id) && !shiftStyles.standby?.isRest;
                         if (worked) {
                             data[emp.id].total++; grandTotal++; data[emp.id].history.push(1);
-                            if (daySched.morning.includes(emp.id)) data[emp.id].morning++;
-                            if (daySched.night.includes(emp.id)) data[emp.id].night++;
-                            if ((daySched.nightShift||[]).includes(emp.id)) data[emp.id].nightShift++;
+                            activeShiftKeys.forEach(sh => {
+                                if ((daySched[sh] || []).includes(emp.id)) {
+                                    data[emp.id].shifts[sh] = (data[emp.id].shifts[sh] || 0) + 1;
+                                    if (sh === 'morning') data[emp.id].morning++;
+                                    if (sh === 'night') data[emp.id].night++;
+                                    if (sh === 'nightShift') data[emp.id].nightShift++;
+                                }
+                            });
                         } else if (onStandby && enabledShifts.standby) { data[emp.id].standbyCount++; data[emp.id].rest++; data[emp.id].history.push(0); } else { data[emp.id].rest++; data[emp.id].history.push(0); }
                     });
                 });
@@ -1757,13 +1807,17 @@
                     if (longRestPeriods > 1) issues.push(`${emp.name}: ${t('issue_viol_rest')}`);
                 });
                 return { data, issues: [...criticalIssues, ...issues], avg, grandTotal, unfilledDays };
-            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd, requirements]);
+            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd, requirements, shiftStyles, workingDays, holidayDates]);
 
             const handleBulkAvailability = (empId, status) => {
                 const days = getCalculatedDays();
                 setAvailability(prev => {
                     const newAvail = { ...prev }; if (!newAvail[empId]) newAvail[empId] = {};
                     if ((status === 'night_only' && !enabledShifts.nightShift) || (status === 'standby_only' && !enabledShifts.standby)) return newAvail;
+                    if ((status.startsWith('only_') || status.startsWith('prefer_'))) {
+                        const target = status.replace('only_','').replace('prefer_','');
+                        if (target in enabledShifts && !enabledShifts[target]) return newAvail;
+                    }
                     if (status.startsWith('priority_day_')) {
                         const targetDayIdx = parseInt(status.split('_')[2]);
                         days.forEach(day => { 
@@ -1849,14 +1903,60 @@
                         <div className="lg:col-span-1 space-y-6">
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                                 <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2"><RefreshCw size={18} /> {t('actions')}</h3>
-                                <div className="mb-4">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{t('pattern')}</label>
-                                    <select value={patternType} onChange={(e) => setPatternType(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-sm">
-                                        <option value="hybrid">{t('phybrid')}</option>
-                                        <option value="2-2">{t('p22')}</option>
-                                        <option value="2-1">{t('p21')}</option>
-                                        {enabledShifts.standby && <option value="2-1-1">{t('p211')}</option>}
-                                    </select>
+                                <div className="mb-4 space-y-2">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Zap size={16}/> YALPS dynamic pattern</div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <label className="space-y-1">
+                                            <span className="block text-slate-500 font-semibold">Min work before rest</span>
+                                            <input type="number" min="0" value={patternRules.minDaysBeforeRest} onChange={(e)=>setPatternRules(r=>({...r, minDaysBeforeRest: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                        <label className="space-y-1">
+                                            <span className="block text-slate-500 font-semibold">Min work between rest blocks</span>
+                                            <input type="number" min="0" value={patternRules.minWorkBetweenRest} onChange={(e)=>setPatternRules(r=>({...r, minWorkBetweenRest: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                        <label className="space-y-1">
+                                            <span className="block text-slate-500 font-semibold">Min consecutive work</span>
+                                            <input type="number" min="0" value={patternRules.minConsecutiveWork} onChange={(e)=>setPatternRules(r=>({...r, minConsecutiveWork: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                        <label className="space-y-1">
+                                            <span className="block text-slate-500 font-semibold">Max consecutive work</span>
+                                            <input type="number" min="0" value={patternRules.maxConsecutiveWork} onChange={(e)=>setPatternRules(r=>({...r, maxConsecutiveWork: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                        <label className="space-y-1">
+                                            <span className="block text-slate-500 font-semibold">Min consecutive rest</span>
+                                            <input type="number" min="0" value={patternRules.minConsecutiveRest} onChange={(e)=>setPatternRules(r=>({...r, minConsecutiveRest: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                        <label className="space-y-1">
+                                            <span className="block text-slate-500 font-semibold">Max consecutive rest</span>
+                                            <input type="number" min="0" value={patternRules.maxConsecutiveRest} onChange={(e)=>setPatternRules(r=>({...r, maxConsecutiveRest: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-xs font-semibold text-slate-600">Working days</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {TRANSLATIONS[lang].days.map((dLabel, idx) => (
+                                                <button key={dLabel} onClick={()=>setWorkingDays(prev => ({...prev, [idx]: !prev[idx]}))} className={`px-2 py-1 rounded text-xs border ${workingDays[idx] ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                                                    {dLabel}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="text-xs font-semibold text-slate-600 flex items-center gap-2"><CalendarIcon size={14}/> Holidays</div>
+                                        <div className="flex gap-2">
+                                            <input type="date" value={newHoliday} onChange={(e)=>setNewHoliday(e.target.value)} className="flex-1 border rounded p-1 text-xs" />
+                                            <button onClick={()=>{ if(newHoliday && !holidayDates.includes(newHoliday)) setHolidayDates([...holidayDates, newHoliday]); setNewHoliday(''); }} className="px-3 py-1 text-xs bg-emerald-600 text-white rounded">Add</button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {holidayDates.length === 0 && <span className="text-[11px] text-slate-400">No holidays set</span>}
+                                            {holidayDates.map(date => (
+                                                <span key={date} className="text-[11px] bg-slate-100 text-slate-700 px-2 py-1 rounded-full flex items-center gap-1">
+                                                    {date}
+                                                    <button onClick={()=>setHolidayDates(prev => prev.filter(d => d !== date))} className="text-red-500 hover:text-red-700">×</button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="mb-4">
                                      <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-2 rounded border border-slate-200 hover:bg-slate-100 transition-colors">
@@ -1905,8 +2005,11 @@
                                             <div className="flex justify-between mb-1 items-center">
                                                 <div className="flex items-center gap-1">
                                                     <span className="font-semibold text-slate-700">{emp.name}</span>
-                                                    {pref === 'night' && <Moon size={12} className="text-indigo-600"/>}
-                                                    {pref === 'morning' && <Sun size={12} className="text-amber-500"/>}
+                                                    {pref && pref !== 'neutral' && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full border" style={{ backgroundColor: shiftStyles[pref]?.color || '#eef2ff', color: shiftStyles[pref]?.textColor || '#312e81', borderColor: shiftStyles[pref]?.color || '#c7d2fe' }}>
+                                                            {shiftStyles[pref]?.icon || pref}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <span className={`font-mono px-2 py-0.5 rounded text-xs ${Math.abs(s.total - stats.avg) > 1.5 ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-100'}`}>{s.total}</span>
                                             </div>
@@ -1978,11 +2081,15 @@
                                                 {highlightedEmp && <button onClick={()=>setHighlightedEmp('')} className="ms-2 text-slate-400 hover:text-red-500"><Trash2 size={14}/></button>}
                                             </div>
                                         </div>
-                                        <div className="flex gap-4 text-xs font-medium text-slate-500">
-                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"></span> {t('morn')}</div>
-                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-900"></span> {t('eve')}</div>
-                                            {enabledShifts.nightShift && <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-900"></span> {t('night')}</div>}
-                                            {enabledShifts.standby && <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-600"></span> {t('standby')}</div>}
+                                        <div className="flex gap-4 text-xs font-medium text-slate-500 flex-wrap">
+                                            {getActiveShiftKeys().map(sh => {
+                                                const meta = shiftStyles[sh] || {};
+                                                return (
+                                                    <div key={sh} className="flex items-center gap-1">
+                                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: meta.color || '#cbd5e1' }}></span> {meta.label || sh}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                     <div className="overflow-auto flex-1 p-0 custom-scroll">
@@ -1992,33 +2099,19 @@
                                                     {/* FIXED: Date column with fixed width and center alignment */}
                                                     <th className="p-3 bg-slate-50 text-slate-500 font-bold uppercase text-center w-[120px]" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid', width: '120px' }}>{t('date_col')}</th>
 
-                                                    <th className="p-3 bg-amber-50/30 text-amber-700 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
-                                                        {t('morn_col')}
-                                                        {showShiftTimes && (
-                                                            <div className="font-normal mt-1 opacity-80 space-y-1 text-center" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
-                                                                {getShiftTimeSummary('morning').map(line => <div key={line}>{line}</div>)}
-                                                            </div>
-                                                        )}
-                                                    </th>
-                                                    <th className="p-3 bg-indigo-50/30 text-indigo-900 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
-                                                        {t('eve_col')}
-                                                        {showShiftTimes && (
-                                                            <div className="font-normal mt-1 opacity-80 space-y-1 text-center" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
-                                                                {getShiftTimeSummary('night').map(line => <div key={line}>{line}</div>)}
-                                                            </div>
-                                                        )}
-                                                    </th>
-                                                    {enabledShifts.nightShift && (
-                                                        <th className="p-3 bg-purple-50/30 text-purple-900 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>
-                                                            {t('night_col')}
-                                                            {showShiftTimes && (
-                                                                <div className="font-normal mt-1 opacity-80 space-y-1 text-center" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
-                                                                    {getShiftTimeSummary('nightShift').map(line => <div key={line}>{line}</div>)}
-                                                                </div>
-                                                            )}
-                                                        </th>
-                                                    )}
-                                                    {enabledShifts.standby && <th className="p-3 bg-cyan-50/30 text-cyan-900 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>{t('standby_col')}</th>}
+                                                    {getActiveShiftKeys().map(sh => {
+                                                        const meta = shiftStyles[sh] || {};
+                                                        return (
+                                                            <th key={sh} className="p-3 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize + 2}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid', backgroundColor: meta.color || '#f8fafc', color: meta.textColor || '#0f172a' }}>
+                                                                <div className="flex items-center justify-center gap-1">{meta.icon ? <span>{meta.icon}</span> : null} <span>{meta.label || sh}</span></div>
+                                                                {showShiftTimes && (
+                                                                    <div className="font-normal mt-1 opacity-80 space-y-1 text-center" style={{ fontSize: `${Math.max(8, viewSettings.headerFontSize - 2)}px` }}>
+                                                                        {getShiftTimeSummary(sh).map(line => <div key={line}>{line}</div>)}
+                                                                    </div>
+                                                                )}
+                                                            </th>
+                                                        );
+                                                    })}
                                                     <th className="p-3 text-slate-500 font-bold text-center" style={{ fontSize: `${viewSettings.headerFontSize}px`, borderBottomWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' }}>{t('off_col')}</th>
                                                 </tr>
                                             </thead>
@@ -2031,15 +2124,11 @@
                                                     const isSat = day.getDay() === 6;
                                                     const hasUnfilled = stats.unfilledDays?.has(dKey);
 
-                                                    let workers = [...s.morning, ...s.night];
-                                                    if(enabledShifts.nightShift) workers = [...workers, ...(s.nightShift||[])];
+                                                    const workShiftKeys = getActiveShiftKeys().filter(sh => !shiftStyles[sh]?.isRest && sh !== 'standby');
+                                                    let workers = [];
+                                                    workShiftKeys.forEach(sh => { workers = [...workers, ...((s[sh]||[]))]; });
                                                     const offDuty = employees.filter(e => !workers.includes(e.id) && !(s.standby || []).includes(e.id));
-                                                    let shiftsToRender = [
-                                                        { key: 'morning', start: req.morningStart, end: req.morningEnd, bg: 'bg-amber-100 border-amber-300 text-amber-900' },
-                                                        { key: 'night', start: req.nightStart, end: req.nightEnd, bg: 'bg-indigo-100 border-indigo-300 text-indigo-900' } 
-                                                    ];
-                                                    if(enabledShifts.nightShift) shiftsToRender.push({ key: 'nightShift', start: req.nightShiftStart, end: req.nightShiftEnd, bg: 'bg-purple-100 border-purple-300 text-purple-900' });
-                                                    if(enabledShifts.standby) shiftsToRender.push({ key: 'standby', start: null, end: null, bg: 'bg-cyan-100 border-cyan-300 text-cyan-900' });
+                                                    let shiftsToRender = getActiveShiftKeys().map(key => ({ key, start: req?.[`${key}Start`], end: req?.[`${key}End`], meta: shiftStyles[key] || {} }));
 
                                                     // FIX: Add dynamic border width style
                                                     const cellStyle = { borderRightWidth: lineWeight, borderLeftWidth: lineWeight, borderColor: lineColor, borderStyle: 'solid' };
@@ -2070,20 +2159,21 @@
 
                                                                             const isHighlighted = highlightedEmp == emp.id;
                                                                             const isDimmed = highlightedEmp && !isHighlighted;
-                                                                            let btnClass = isSelected ? sh.bg : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400';
+                                                                            const meta = sh.meta || {};
+                                                                            let btnClass = isSelected ? '' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400';
                                                                             if (isHighlighted) btnClass += " ring-2 ring-offset-1 ring-blue-500 font-bold scale-105 z-10 shadow-md";
                                                                             if (isDimmed) btnClass += " opacity-30 blur-[0.5px]";
 
                                                                             return (
                                                                                 <button key={emp.id} disabled={disabled} onClick={() => toggleAssignment(dKey, sh.key, emp.id)}
-                                                                                    style={{ fontSize: `${viewSettings.cellFontSize}px` }}
+                                                                                    style={{ fontSize: `${viewSettings.cellFontSize}px`, backgroundColor: isSelected ? meta.color || '#e0f2fe' : undefined, color: isSelected ? meta.textColor || '#0f172a' : undefined, borderColor: isSelected ? meta.color || '#cbd5e1' : undefined }}
                                                                                     className={`px-2 py-1 rounded border transition-all ${btnClass} ${disabled ? 'opacity-30 cursor-not-allowed bg-slate-50' : ''}`}>
                                                                                     {emp.name}
                                                                                 </button>
                                                                             )
                                                                         })}
                                                                     </div>
-                                                                    <div className={`mt-1 text-center ${(s[sh.key]||[]).length !== req[sh.key] ? 'text-red-400 font-medium' : 'text-green-500 opacity-50'}`} style={{ fontSize: `${Math.max(8, viewSettings.cellFontSize - 2)}px` }}>{(s[sh.key]||[]).length}/{req[sh.key]}</div>
+                                                                    <div className={`mt-1 text-center ${(s[sh.key]||[]).length !== req[sh.key] ? 'text-red-400 font-medium' : 'text-green-500 opacity-50'}`} style={{ fontSize: `${Math.max(8, viewSettings.cellFontSize - 2)}px`, color: (s[sh.key]||[]).length === req[sh.key] ? (sh.meta?.textColor || '#16a34a') : undefined }}>{(s[sh.key]||[]).length}/{req[sh.key]}</div>
                                                                 </td>
                                                             ))}
                                                             <td className={`p-2 align-top ${hasUnfilled ? 'bg-red-50/60' : 'bg-slate-50/30'}`} style={cellStyle}>
@@ -2398,10 +2488,17 @@
                                                         <th className="p-3 text-start text-xs text-slate-500 align-middle sticky start-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] rtl:shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]"><span className="font-semibold block">{t('pref_row')}</span></th>
                                                         {employees.map(e => (
                                                             <td key={e.id} className="p-2 border-s border-slate-100 text-center">
-                                                                <div className="inline-flex bg-slate-100 rounded-lg p-1">
+                                                                <div className="inline-flex bg-slate-100 rounded-lg p-1 gap-1">
                                                                     <button onClick={()=>setPreferences(p=>({...p,[e.id]:'neutral'}))} className={`p-1.5 rounded ${!preferences[e.id] || preferences[e.id]==='neutral' ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}><Users size={14}/></button>
-                                                                    <button onClick={()=>setPreferences(p=>({...p,[e.id]:'morning'}))} className={`p-1.5 rounded ${preferences[e.id]==='morning' ? 'bg-amber-100 text-amber-700 shadow-sm' : 'text-slate-400'}`}><Sun size={14}/></button>
-                                                                    <button onClick={()=>setPreferences(p=>({...p,[e.id]:'night'}))} className={`p-1.5 rounded ${preferences[e.id]==='night' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400'}`}><Moon size={14}/></button>
+                                                                    {getActiveShiftKeys().filter(sh => !shiftStyles[sh]?.isRest).map(sh => {
+                                                                        const active = preferences[e.id] === sh;
+                                                                        const meta = shiftStyles[sh] || {};
+                                                                        return (
+                                                                            <button key={sh} onClick={()=>setPreferences(p=>({...p,[e.id]:sh}))} className={`p-1.5 rounded ${active ? 'shadow-sm' : ''}`} style={{ backgroundColor: active ? meta.color : undefined, color: active ? meta.textColor : '#94a3b8' }}>
+                                                                                <span className="text-xs font-semibold">{meta.icon || sh.substring(0,1).toUpperCase()}</span>
+                                                                            </button>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             </td>
                                                         ))}
@@ -2414,10 +2511,8 @@
                                                                     <option value="select_action" disabled>{t('action_ph')}</option>
                                                                     <option value="">{t('set_avail')}</option>
                                                                     <option value="unavailable">{t('set_unavail')}</option>
-                                                                    <option value="morning_only">{t('set_morn')}</option>
-                                                                    <option value="evening_only">{t('set_eve')}</option>
-                                                                    {enabledShifts.nightShift && <option value="night_only">{t('set_night')}</option>}
-                                                                    {enabledShifts.standby && <option value="standby_only">{t('set_standby')}</option>}
+                                                                    {getActiveShiftKeys().map(sh => <option key={`only_${sh}`} value={`only_${sh}`}>Only {shiftStyles[sh]?.label || sh}</option>)}
+                                                                    {getActiveShiftKeys().map(sh => <option key={`prefer_${sh}`} value={`prefer_${sh}`}>Prefer {shiftStyles[sh]?.label || sh}</option>)}
                                                                     <option value="priority_day_0" className="font-bold bg-indigo-50">{t('set_sun')}</option>
                                                                     <option value="priority_day_1" className="font-bold bg-indigo-50">{t('set_mon')}</option>
                                                                     <option value="priority_day_2" className="font-bold bg-indigo-50">{t('set_tue')}</option>
@@ -2442,10 +2537,17 @@
                                                                     const status = availability[e.id]?.[dKey];
                                                                     let cellClass = "";
                                                                     if(status === 'unavailable') cellClass = "bg-red-50";
-                                                                    if(status === 'morning_only') cellClass = "bg-amber-50";
-                                                                    if(status === 'evening_only') cellClass = "bg-blue-50";
-                                                                    if(status === 'night_only' && enabledShifts.nightShift) cellClass = "bg-indigo-50";
-                                                                    if(status === 'standby_only' && enabledShifts.standby) cellClass = "bg-emerald-50";
+                                                                    if(status && status.startsWith('only_')) {
+                                                                        const sh = status.replace('only_','');
+                                                                        cellClass = '';
+                                                                        const meta = shiftStyles[sh] || {};
+                                                                        cellClass = meta.color ? '' : "bg-amber-50";
+                                                                    }
+                                                                    if(status && status.startsWith('prefer_')) {
+                                                                        const sh = status.replace('prefer_','');
+                                                                        const meta = shiftStyles[sh] || {};
+                                                                        cellClass = meta.color ? '' : "bg-blue-50";
+                                                                    }
                                                                     if(status === 'priority') cellClass = "bg-indigo-100 ring-2 ring-indigo-300 ring-inset";
 
                                                                     return (
@@ -2453,10 +2555,8 @@
                                                                             <select value={status || ''} onChange={(ev) => setAvailability(prev => { const newVal = ev.target.value; const newAvail = { ...prev }; if(!newAvail[e.id]) newAvail[e.id] = {}; if(newVal === '') delete newAvail[e.id][dKey]; else newAvail[e.id][dKey] = newVal; return newAvail; })} className="w-full bg-transparent text-xs p-1 border-none focus:ring-0 text-center cursor-pointer font-medium text-slate-600">
                                                                                 <option value="">-</option>
                                                                                 <option value="unavailable">{t('opt_unavail')}</option>
-                                                                                <option value="morning_only">{t('opt_morn')}</option>
-                                                                                <option value="evening_only">{t('opt_eve')}</option>
-                                                                                {enabledShifts.nightShift && <option value="night_only">{t('opt_night')}</option>}
-                                                                                {enabledShifts.standby && <option value="standby_only">{t('opt_standby')}</option>}
+                                                                                {getActiveShiftKeys().map(sh => <option key={`only_${sh}`} value={`only_${sh}`}>Only {shiftStyles[sh]?.label || sh}</option>)}
+                                                                                {getActiveShiftKeys().map(sh => <option key={`prefer_${sh}`} value={`prefer_${sh}`}>Prefer {shiftStyles[sh]?.label || sh}</option>)}
                                                                                 <option value="priority">{t('opt_priority')}</option>
                                                                             </select>
                                                                         </td>
@@ -2613,6 +2713,61 @@
                                                         <input type="checkbox" checked={enabledShifts.standby} onChange={e => handleToggleOptionalShift('standby', e.target.checked)} className="w-4 h-4 text-indigo-600 rounded" />
                                                         <span className="text-sm font-medium text-slate-700">{t('enable_standby')}</span>
                                                     </label>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                                                <div className="flex items-start justify-between gap-2 mb-2">
+                                                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><Layers size={18} className="text-indigo-500"/> Shift designer</h3>
+                                                    <span className="text-[11px] text-slate-500">Customize labels, icons, colors, rest flags, and durations.</span>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    {[...getActiveShiftKeys(), 'off'].map(key => {
+                                                        const meta = shiftStyles[key] || {};
+                                                        const isOptional = key === 'nightShift' || key === 'standby';
+                                                        const updateMeta = (changes) => setShiftStyles(prev => ({ ...prev, [key]: { ...prev[key], ...changes } }));
+                                                        return (
+                                                            <div key={key} className="border border-slate-200 rounded-lg p-3 space-y-2">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                                                        <span className="text-lg">{meta.icon || '•'}</span>
+                                                                        <span>{meta.label || key}</span>
+                                                                    </div>
+                                                                    {isOptional && (
+                                                                        <label className="flex items-center gap-1 text-[11px] text-slate-600">
+                                                                            <input type="checkbox" checked={enabledShifts[key]} onChange={e => handleToggleOptionalShift(key, e.target.checked)} className="w-4 h-4" /> Enable
+                                                                        </label>
+                                                                    )}
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                                    <label className="space-y-1">
+                                                                        <span className="block text-slate-500 font-semibold">Name</span>
+                                                                        <input type="text" value={meta.label || ''} onChange={(e)=>updateMeta({ label: e.target.value })} className="w-full p-2 border rounded" />
+                                                                    </label>
+                                                                    <label className="space-y-1">
+                                                                        <span className="block text-slate-500 font-semibold">Icon</span>
+                                                                        <input type="text" value={meta.icon || ''} onChange={(e)=>updateMeta({ icon: e.target.value })} className="w-full p-2 border rounded" />
+                                                                    </label>
+                                                                    <label className="space-y-1">
+                                                                        <span className="block text-slate-500 font-semibold">Color</span>
+                                                                        <input type="color" value={meta.color || '#e2e8f0'} onChange={(e)=>updateMeta({ color: e.target.value })} className="w-full h-10 border rounded" />
+                                                                    </label>
+                                                                    <label className="space-y-1">
+                                                                        <span className="block text-slate-500 font-semibold">Text</span>
+                                                                        <input type="color" value={meta.textColor || '#0f172a'} onChange={(e)=>updateMeta({ textColor: e.target.value })} className="w-full h-10 border rounded" />
+                                                                    </label>
+                                                                    <label className="space-y-1">
+                                                                        <span className="block text-slate-500 font-semibold">Duration (hrs)</span>
+                                                                        <input type="number" min="0" value={meta.duration || 0} onChange={(e)=>updateMeta({ duration: Number(e.target.value) })} className="w-full p-2 border rounded" />
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-slate-600 font-medium">
+                                                                        <input type="checkbox" checked={!!meta.isRest} onChange={(e)=>updateMeta({ isRest: e.target.checked })} className="w-4 h-4" disabled={key === 'off'} />
+                                                                        <span>Counts as rest</span>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
 
