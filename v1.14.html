@@ -108,7 +108,7 @@
                 add_staff: "Add Staff",
                 confirm_clear: "Are you sure you want to clear the current schedule?",
                 err_gen: "Error generating schedule.",
-                issue_imbalance: "IMBALANCE: Shift gap is",
+                issue_imbalance: "IMBALANCE: Shift gap is {gap} (Max {max})",
                 issue_3day: "3-Day Work streak",
                 issue_viol_streak: "VIOLATION: Has work streaks of 3 days!",
                 issue_viol_rest: "VIOLATION: Rested 3+ days too many times!",
@@ -212,7 +212,11 @@
                 warning_three_day: "Someone works 3 days straight.",
                 warning_violation_streak: "A person accumulates multiple 3-day streaks.",
                 warning_violation_rest: "A person rests 3+ days too many times.",
-                warning_unfilled_detail: "UNFILLED: {shift} on {date} missing {count}"
+                warning_unfilled_detail: "UNFILLED: {shift} on {date} missing {count}",
+                notice_generation_header: "Latest generation details",
+                notice_generation_partial: "Filled {filled} of {total} slots. Remaining were left blank so you can review them.",
+                notice_generation_error: "Could not place everyone with the given rules. The schedule was partially filled—please adjust constraints or fill the gaps manually.",
+                label_max_shift_gap: "Max shift gap between employees"
             },
             ar: {
                 title: "Scheduler V1.9.4",
@@ -282,7 +286,7 @@
                 add_staff: "إضافة موظف",
                 confirm_clear: "هل أنت متأكد من رغبتك في مسح الجدول الحالي؟",
                 err_gen: "حدث خطأ أثناء إنشاء الجدول.",
-                issue_imbalance: "عدم توازن: فجوة الورديات هي",
+                issue_imbalance: "عدم توازن: الفارق بين الأفراد {gap} (الحد {max}).",
                 issue_3day: "سلسلة عمل 3 أيام",
                 issue_viol_streak: "مخالفة: لديه سلاسل عمل لمدة 3 أيام!",
                 issue_viol_rest: "مخالفة: ارتاح 3 أيام أو أكثر عدة مرات!",
@@ -385,7 +389,11 @@
                 warning_three_day: "شخص يعمل 3 أيام متتالية.",
                 warning_violation_streak: "شخص لديه أكثر من سلسلة عمل من 3 أيام.",
                 warning_violation_rest: "شخص يرتاح 3 أيام أو أكثر لمرات كثيرة.",
-                warning_unfilled_detail: "نقص تغطية: {shift} بتاريخ {date} ناقص {count}"
+                warning_unfilled_detail: "نقص تغطية: {shift} بتاريخ {date} ناقص {count}",
+                notice_generation_header: "تفاصيل آخر توليد",
+                notice_generation_partial: "تم تغطية {filled} من {total} خانة. البقية تُركت فارغة للمراجعة.",
+                notice_generation_error: "لم نتمكن من وضع الجميع حسب القواعد. الجدول مُلئ جزئياً — عدّل القيود أو أكمل الفراغات يدوياً.",
+                label_max_shift_gap: "أقصى فارق مهام بين الموظفين"
             }
         };
 
@@ -506,6 +514,9 @@
                 maxConsecutiveRest: 3,
             });
             const [showWarnings, setShowWarnings] = useState(true);
+            const [maxShiftGap, setMaxShiftGap] = useState(2);
+            const [generationNotices, setGenerationNotices] = useState([]);
+            const [generationSummary, setGenerationSummary] = useState('');
             
             // --- NEW: View Settings State ---
             const [viewSettings, setViewSettings] = useState(() => ({ ...DEFAULT_VIEW_SETTINGS, frameBorders: { ...DEFAULT_VIEW_SETTINGS.frameBorders } }));
@@ -743,6 +754,9 @@
                 if (data.workingDays) setWorkingDays(prev => ({ ...prev, ...data.workingDays }));
                 if (data.holidayDates) setHolidayDates(data.holidayDates);
                 if (data.patternRules) setPatternRules(prev => ({ ...prev, ...data.patternRules }));
+                if (data.maxShiftGap !== undefined) setMaxShiftGap(data.maxShiftGap);
+                if (data.generationNotices) setGenerationNotices(data.generationNotices);
+                if (data.generationSummary) setGenerationSummary(data.generationSummary);
 
                 const sanitizedExcel = sanitizeExcelConfig(data.excelConfig);
                 if (sanitizedExcel) setExcelConfig(sanitizedExcel);
@@ -777,10 +791,11 @@
                 try {
                     localStorage.setItem('scheduler_data_v1_14_dynamic', JSON.stringify({
                         employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig,
-                        showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules
+                        showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules,
+                        maxShiftGap, generationNotices, generationSummary
                     }));
                 } catch (e) {}
-            }, [employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig, showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules]);
+            }, [employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig, showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules, maxShiftGap, generationNotices, generationSummary]);
 
             // ... (helper methods)
             const clearSchedule = () => {
@@ -887,6 +902,7 @@
                 const data = {
                     employees, schedule, requirements, availability, preferences, lang, enabledShifts, showShiftTimes, excelConfig,
                     showWarnings, scheduleMode, rangeStart, rangeEnd, viewSettings, shiftStyles, workingDays, holidayDates, patternRules,
+                    maxShiftGap, generationNotices, generationSummary,
                     version: "1.9.4",
                     timestamp: new Date().toISOString()
                 };
@@ -1726,6 +1742,20 @@
                 const empState = {};
                 empList.forEach(e => { empState[e.id] = { workStreak: 0, restStreak: 0, standbyStreak: 0, history: [] }; });
                 const solution = {};
+                const missingSlots = [];
+                let totalSlots = 0;
+                let filledSlots = 0;
+
+                days.forEach(day => {
+                    const dow = day.getDay();
+                    const dKey = formatDateKey(day);
+                    if (!workingDays[dow] || holidaysSet.has(dKey)) return;
+                    const req = reqs[dow] || {};
+                    activeShiftKeys.forEach(key => {
+                        const { requiredCount } = getShiftRequirement(req, key);
+                        totalSlots += requiredCount || 0;
+                    });
+                });
 
                 const isWorkShift = (shiftType) => {
                     const meta = shiftStyles[shiftType] || {};
@@ -1754,6 +1784,8 @@
                 const attempt = (dayIdx) => {
                     if (dayIdx >= days.length) return true;
                     const snapshot = JSON.parse(JSON.stringify(empState));
+                    const missingSnapshot = missingSlots.length;
+                    const filledSnapshot = filledSlots;
                     const day = days[dayIdx];
                     const dKey = formatDateKey(day);
                     const dow = day.getDay();
@@ -1769,6 +1801,8 @@
                         const ok = attempt(dayIdx + 1);
                         if (!ok) {
                             Object.keys(empState).forEach(id => { empState[id] = snapshot[id]; });
+                            filledSlots = filledSnapshot;
+                            missingSlots.length = missingSnapshot;
                         }
                         return ok;
                     }
@@ -1800,6 +1834,8 @@
                             const proceed = attempt(dayIdx + 1);
                             if (proceed) return true;
                             Object.keys(empState).forEach(id => { empState[id] = snapshot[id]; });
+                            filledSlots = filledSnapshot;
+                            missingSlots.length = missingSnapshot;
                             return false;
                         }
 
@@ -1809,35 +1845,54 @@
                             .filter(e => respectsAvailability(e.id, shift, dKey))
                             .sort((a, b) => (preferences[b.id] === shift ? 1 : 0) - (preferences[a.id] === shift ? 1 : 0));
 
+                        let triedCandidate = false;
                         for (let i = 0; i < candidates.length; i++) {
                             const empId = candidates[i].id;
                             const state = empState[empId];
                             if (state.restStreak < patternRules.minConsecutiveRest && state.history.slice(-1)[0] === 'rest') continue;
                             const nextWork = state.workStreak + 1;
                             if (!enforceHardPatterns(nextWork, 0)) continue;
+                            triedCandidate = true;
                             used.add(empId);
                             dayAssignment[shift] = dayAssignment[shift] || [];
                             dayAssignment[shift].push(empId);
                             const prevState = { ...state };
                             empState[empId] = { ...state, workStreak: nextWork, restStreak: 0 };
+                            filledSlots += 1;
                             if (assignSlot(slotIdx + 1)) return true;
+                            filledSlots -= 1;
                             empState[empId] = prevState;
                             dayAssignment[shift].pop();
                             if (dayAssignment[shift].length === 0) delete dayAssignment[shift];
                             used.delete(empId);
                         }
-                        return false;
+                        const miss = { date: dKey, shift };
+                        missingSlots.push(miss);
+                        const proceed = assignSlot(slotIdx + 1);
+                        if (!proceed) missingSlots.pop();
+                        return proceed || triedCandidate;
                     };
 
                     return assignSlot(0);
                 };
 
                 const success = attempt(0);
-                return success ? solution : null;
+                const warnings = missingSlots.map(miss => (
+                    t('warning_unfilled_detail')
+                        .replace('{shift}', shiftStyles[miss.shift]?.label || miss.shift)
+                        .replace('{date}', formatShortDate(new Date(miss.date)))
+                        .replace('{count}', 1)
+                ));
+                const summary = t(success ? 'notice_generation_partial' : 'notice_generation_error')
+                    .replace('{filled}', filledSlots)
+                    .replace('{total}', totalSlots);
+                return { schedule: solution, warnings, summary };
             };
 
             const generateSchedule = async () => {
                 setIsGenerating(true);
+                setGenerationNotices([]);
+                setGenerationSummary('');
                 setTimeout(() => {
                     try {
                         const days = getCalculatedDays();
@@ -1845,8 +1900,10 @@
                         const activeShiftKeys = getActiveShiftKeys();
                         const solved = runYalpsSolver(days, activeShiftKeys, employees, requirements, holidaysSet);
                         if (!solved) throw new Error('No feasible schedule');
-                        setSchedule(solved);
-                    } catch (error) { console.error(error); alert(t('err_gen')); } finally { setIsGenerating(false); }
+                        setSchedule(solved.schedule || {});
+                        setGenerationNotices(solved.warnings || []);
+                        setGenerationSummary(solved.summary || '');
+                    } catch (error) { console.error(error); setGenerationSummary(t('notice_generation_error')); } finally { setIsGenerating(false); }
                 }, 30);
             };
 
@@ -1903,7 +1960,12 @@
                 const avg = totals.reduce((a,b)=>a+b,0) / totals.length || 0;
                 const minShifts = Math.min(...totals);
                 const maxShifts = Math.max(...totals);
-                if (maxShifts - minShifts > 2) issues.push(`${t('issue_imbalance')} ${maxShifts - minShifts} (Max 2)`);
+                const shiftGap = maxShifts - minShifts;
+                if (shiftGap > maxShiftGap) issues.push(
+                    t('issue_imbalance')
+                        .replace('{gap}', shiftGap)
+                        .replace('{max}', maxShiftGap)
+                );
                 employees.forEach(emp => {
                     let consWork = 0; let consRest = 0; let threeDayWorkStreaks = 0; let longRestPeriods = 0;
                     data[emp.id].history.forEach((val, i) => {
@@ -1915,7 +1977,7 @@
                     if (longRestPeriods > 1) issues.push(`${emp.name}: ${t('issue_viol_rest')}`);
                 });
                 return { data, issues: [...criticalIssues, ...issues], avg, grandTotal, unfilledDays };
-            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd, requirements, shiftStyles, workingDays, holidayDates]);
+            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd, requirements, shiftStyles, workingDays, holidayDates, maxShiftGap]);
 
             const handleBulkAvailability = (empId, status) => {
                 const days = getCalculatedDays();
@@ -1955,6 +2017,7 @@
             const lineColor = viewSettings.lineColor || '#e2e8f0';
             const frameBorders = viewSettings.frameBorders || { top: lineWeight, right: lineWeight, bottom: lineWeight, left: lineWeight };
             const frameColor = viewSettings.frameColor || lineColor;
+            const warningItems = [...(generationNotices || []), ...(stats?.issues || [])];
 
             return (
                 <div className={`min-h-screen p-2 md:p-8 ${lang === 'ar' ? 'font-[Cairo]' : ''}`}>
@@ -2036,6 +2099,11 @@
                                         <label className="space-y-1">
                                             <span className="block text-slate-500 font-semibold">Max consecutive rest</span>
                                             <input type="number" min="0" value={patternRules.maxConsecutiveRest} onChange={(e)=>setPatternRules(r=>({...r, maxConsecutiveRest: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                        <label className="space-y-1 col-span-2">
+                                            <span className="block text-slate-500 font-semibold">{t('label_max_shift_gap')}</span>
+                                            <input type="number" min="0" value={maxShiftGap} onChange={(e)=>setMaxShiftGap(Number(e.target.value))} className="w-full p-1.5 border rounded" />
+                                            <span className="text-[11px] text-slate-500">{t('warning_imbalance').replace('{gap}', maxShiftGap + 1).replace('{max}', maxShiftGap)}</span>
                                         </label>
                                     </div>
                                     <div className="space-y-1">
@@ -2163,11 +2231,21 @@
                                 </div>
                             </div>
                             
-                            {showWarnings && stats.issues.length > 0 && (
+                            {generationSummary && (
+                                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-blue-800 text-xs flex gap-2 items-start">
+                                    <Info size={16} className="mt-0.5" />
+                                    <div>
+                                        <div className="text-sm font-semibold text-blue-900">{t('notice_generation_header')}</div>
+                                        <p className="leading-snug">{generationSummary}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {showWarnings && warningItems.length > 0 && (
                                 <div className="bg-red-50 p-4 rounded-xl border border-red-100 max-h-60 overflow-auto warnings-scroll">
-                                    <h3 className="font-semibold text-red-800 mb-2 flex items-center gap-2 text-sm sticky top-0 bg-red-50"><AlertTriangle size={16}/> {t('warnings')} ({stats.issues.length})</h3>
+                                    <h3 className="font-semibold text-red-800 mb-2 flex items-center gap-2 text-sm sticky top-0 bg-red-50"><AlertTriangle size={16}/> {t('warnings')} ({warningItems.length})</h3>
                                     <ul className="list-disc list-inside text-xs text-red-700 space-y-1">
-                                        {stats.issues.map((issue, idx) => <li key={idx}>{issue}</li>)}
+                                        {warningItems.map((issue, idx) => <li key={idx}>{issue}</li>)}
                                     </ul>
                                 </div>
                             )}
