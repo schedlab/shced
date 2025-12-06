@@ -40,6 +40,67 @@
             standby: { requiredCount: 0, startTime: '00:00', endTime: '23:59' },
         }));
 
+        const TRANSLATIONS = {
+            en: {
+                title: 'Dynamic Scheduler',
+                tabs: { schedule: 'Schedule', availability: 'Availability', employees: 'Employees', settings: 'Settings', export: 'Export' },
+                generate: 'Generate New',
+                clear: 'Clear',
+                availability: 'Availability & Preferences',
+                employees: 'Employees',
+                addEmployee: 'Add Employee',
+                remove: 'Remove',
+                shifts: 'Shifts',
+                addShift: 'Add Shift',
+                requirements: 'Requirements & Constraints',
+                workDay: 'Work Day',
+                holidays: 'Holidays',
+                addHoliday: 'Add Holiday',
+                export: 'Export',
+                exportCsv: 'Export CSV',
+                exportExcel: 'Export Excel',
+                viewSettings: 'View Settings',
+                fontSize: 'Font Size',
+                cellPadding: 'Cell Padding',
+                showTimes: 'Show Times in Header',
+                excelOptions: 'Excel Header/Footer',
+                office: 'Office Name',
+                preparer: 'Prepared By',
+                headerColor: 'Header Color',
+                headerText: 'Header Text Color',
+                showWarnings: 'Show Warnings',
+            },
+            ar: {
+                title: 'منشئ الجداول الديناميكي',
+                tabs: { schedule: 'الجدول', availability: 'التوفر', employees: 'الموظفون', settings: 'الإعدادات', export: 'تصدير' },
+                generate: 'توليد جديد',
+                clear: 'مسح',
+                availability: 'التوفر والتفضيلات',
+                employees: 'الموظفون',
+                addEmployee: 'إضافة موظف',
+                remove: 'إزالة',
+                shifts: 'الورديات',
+                addShift: 'إضافة وردية',
+                requirements: 'المتطلبات والقيود',
+                workDay: 'يوم عمل',
+                holidays: 'العطل',
+                addHoliday: 'إضافة عطلة',
+                export: 'تصدير',
+                exportCsv: 'تصدير CSV',
+                exportExcel: 'تصدير Excel',
+                viewSettings: 'إعدادات العرض',
+                fontSize: 'حجم الخط',
+                cellPadding: 'هامش الخلية',
+                showTimes: 'إظهار الأوقات في العنوان',
+                excelOptions: 'رأس وتذييل Excel',
+                office: 'اسم المكتب',
+                preparer: 'أعد بواسطة',
+                headerColor: 'لون الرأس',
+                headerText: 'لون نص الرأس',
+                showWarnings: 'إظهار التحذيرات',
+            },
+        };
+
         const migrateLegacyData = () => {
             for (const key of OLD_STORAGE_KEYS) {
                 const raw = localStorage.getItem(key);
@@ -206,7 +267,8 @@
         };
 
         const Scheduler = () => {
-            const initial = loadState() || {
+            const saved = loadState();
+            const baseDefaults = {
                 language: 'en',
                 employees: [{ id: 'emp-1', name: 'Employee 1' }, { id: 'emp-2', name: 'Employee 2' }],
                 shifts: defaultShifts,
@@ -230,13 +292,30 @@
                 startDate: formatDate(new Date()),
                 endDate: formatDate(new Date()),
                 excelOptions: { office: '', preparer: '', headerColor: '#e2e8f0', headerText: '#0f172a' },
-                viewOptions: { showTimes: true },
+                viewOptions: { showTimes: true, fontSize: 12, cellPadding: 8, showWarnings: true },
             };
+
+            const initial = saved ? {
+                ...baseDefaults,
+                ...saved,
+                excelOptions: { ...baseDefaults.excelOptions, ...(saved.excelOptions || {}) },
+                viewOptions: { ...baseDefaults.viewOptions, ...(saved.viewOptions || {}) },
+            } : baseDefaults;
 
             const [state, setState] = useState(initial);
             const [activeTab, setActiveTab] = useState('schedule');
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
+
+            useEffect(() => {
+                document.body.classList.toggle('rtl', state.language === 'ar');
+            }, [state.language]);
+
+            const t = (keyPath) => {
+                const [root, child] = keyPath.split('.')
+                if (child) return TRANSLATIONS[state.language]?.[root]?.[child] || keyPath;
+                return TRANSLATIONS[state.language]?.[keyPath] || keyPath;
+            };
 
             useEffect(() => { saveState(state); }, [state]);
 
@@ -356,7 +435,22 @@
             const exportExcel = async () => {
                 const workbook = new ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet('Schedule');
-                sheet.addRow(['Date', 'Day', ...enabledShifts.map(s => s.name[state.language])]);
+                const lastColIndex = 2 + enabledShifts.length;
+                const colLetter = String.fromCharCode('A'.charCodeAt(0) + lastColIndex - 1);
+                const infoRow = sheet.addRow([state.excelOptions.office || '', '', '']);
+                sheet.mergeCells(`A1:${colLetter}1`);
+                infoRow.font = { bold: true, size: 14 };
+                const prepRow = sheet.addRow([state.excelOptions.preparer ? `${state.excelOptions.preparer}` : '', '', '']);
+                sheet.mergeCells(`A2:${colLetter}2`);
+                prepRow.font = { size: 12 };
+
+                const headerRow = sheet.addRow(['Date', 'Day', ...enabledShifts.map(s => s.name[state.language])]);
+                headerRow.eachCell(cell => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: state.excelOptions.headerColor?.replace('#','') || 'e2e8f0' } };
+                    cell.font = { color: { argb: state.excelOptions.headerText?.replace('#','') || '0f172a' }, bold: true };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                });
+
                 dates.forEach(date => {
                     const row = [date, daysShort[new Date(date).getDay()]];
                     enabledShifts.forEach(shift => {
@@ -373,26 +467,26 @@
                 <div className="bg-white p-4 rounded-lg shadow">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex space-x-2 rtl:space-x-reverse">
-                            <button onClick={() => setActiveTab('schedule')} className={`px-3 py-2 rounded ${activeTab==='schedule'?'bg-slate-900 text-white':'bg-slate-100'}`}>Schedule</button>
-                            <button onClick={() => setActiveTab('availability')} className={`px-3 py-2 rounded ${activeTab==='availability'?'bg-slate-900 text-white':'bg-slate-100'}`}>Availability</button>
-                            <button onClick={() => setActiveTab('employees')} className={`px-3 py-2 rounded ${activeTab==='employees'?'bg-slate-900 text-white':'bg-slate-100'}`}>Employees</button>
-                            <button onClick={() => setActiveTab('settings')} className={`px-3 py-2 rounded ${activeTab==='settings'?'bg-slate-900 text-white':'bg-slate-100'}`}>Settings</button>
-                            <button onClick={() => setActiveTab('export')} className={`px-3 py-2 rounded ${activeTab==='export'?'bg-slate-900 text-white':'bg-slate-100'}`}>Export</button>
+                            <button onClick={() => setActiveTab('schedule')} className={`px-3 py-2 rounded ${activeTab==='schedule'?'bg-slate-900 text-white':'bg-slate-100'}`}>{t('tabs.schedule')}</button>
+                            <button onClick={() => setActiveTab('availability')} className={`px-3 py-2 rounded ${activeTab==='availability'?'bg-slate-900 text-white':'bg-slate-100'}`}>{t('tabs.availability')}</button>
+                            <button onClick={() => setActiveTab('employees')} className={`px-3 py-2 rounded ${activeTab==='employees'?'bg-slate-900 text-white':'bg-slate-100'}`}>{t('tabs.employees')}</button>
+                            <button onClick={() => setActiveTab('settings')} className={`px-3 py-2 rounded ${activeTab==='settings'?'bg-slate-900 text-white':'bg-slate-100'}`}>{t('tabs.settings')}</button>
+                            <button onClick={() => setActiveTab('export')} className={`px-3 py-2 rounded ${activeTab==='export'?'bg-slate-900 text-white':'bg-slate-100'}`}>{t('tabs.export')}</button>
                         </div>
                         <div className="flex space-x-2 rtl:space-x-reverse">
-                            <button onClick={generateSchedule} className="px-3 py-2 bg-emerald-600 text-white rounded" disabled={loading}>{loading?'Generating...':'Generate New'}</button>
-                            <button onClick={clearSchedule} className="px-3 py-2 bg-slate-200 rounded">Clear</button>
+                            <button onClick={generateSchedule} className="px-3 py-2 bg-emerald-600 text-white rounded" disabled={loading}>{loading?t('generate')+'...':t('generate')}</button>
+                            <button onClick={clearSchedule} className="px-3 py-2 bg-slate-200 rounded">{t('clear')}</button>
                         </div>
                     </div>
                     {error && <div className="p-2 bg-rose-100 text-rose-700 rounded mb-4">{error}</div>}
                     <div className="overflow-auto custom-scroll">
-                        <table className="min-w-full text-sm">
+                        <table className="min-w-full" style={{ fontSize: `${state.viewOptions.fontSize}px` }}>
                             <thead>
                                 <tr className="bg-slate-100">
-                                    <th className="border px-2 py-2">Date</th>
-                                    <th className="border px-2 py-2">Day</th>
+                                    <th className="border" style={{ padding: state.viewOptions.cellPadding }}>Date</th>
+                                    <th className="border" style={{ padding: state.viewOptions.cellPadding }}>Day</th>
                                     {enabledShifts.map(shift => (
-                                        <th key={shift.id} className="border px-2 py-2" style={{ background: shift.color }}>
+                                        <th key={shift.id} className="border" style={{ background: shift.color, padding: state.viewOptions.cellPadding }}>
                                             <div className="flex items-center space-x-1 rtl:space-x-reverse justify-center">
                                                 <span>{shift.icon}</span>
                                                 <span>{shift.name[state.language]}</span>
@@ -405,10 +499,10 @@
                             <tbody>
                                 {dates.map(date => (
                                     <tr key={date} className="even:bg-slate-50">
-                                        <td className="border px-2 py-2 font-medium">{date}</td>
-                                        <td className="border px-2 py-2">{daysShort[new Date(date).getDay()]}</td>
+                                        <td className="border font-medium" style={{ padding: state.viewOptions.cellPadding }}>{date}</td>
+                                        <td className="border" style={{ padding: state.viewOptions.cellPadding }}>{daysShort[new Date(date).getDay()]}</td>
                                         {enabledShifts.map(shift => (
-                                            <td key={shift.id} className="border px-2 py-2" style={{ background: `${shift.color}55` }}>
+                                            <td key={shift.id} className="border" style={{ background: `${shift.color}55`, padding: state.viewOptions.cellPadding }}>
                                                 <div className="space-y-1">
                                                     {(state.schedule[date]?.[shift.id] || []).map(empId => (
                                                         <div key={empId} className="px-2 py-1 rounded bg-white shadow-sm">
@@ -428,7 +522,7 @@
 
             const availabilityView = () => (
                 <div className="bg-white p-4 rounded-lg shadow space-y-4">
-                    <h2 className="text-lg font-semibold">Availability & Preferences</h2>
+                    <h2 className="text-lg font-semibold">{t('availability')}</h2>
                     <div className="overflow-auto custom-scroll">
                         <table className="min-w-full text-sm">
                             <thead className="bg-slate-100">
@@ -517,14 +611,14 @@
             const employeesView = () => (
                 <div className="bg-white p-4 rounded-lg shadow space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold">Employees</h2>
-                        <button onClick={() => setState(prev => ({ ...prev, employees: [...prev.employees, { id: `emp-${Date.now()}`, name: 'New Employee' }] }))} className="px-3 py-1 bg-slate-900 text-white rounded">Add Employee</button>
+                        <h2 className="text-lg font-semibold">{t('employees')}</h2>
+                        <button onClick={() => setState(prev => ({ ...prev, employees: [...prev.employees, { id: `emp-${Date.now()}`, name: 'New Employee' }] }))} className="px-3 py-1 bg-slate-900 text-white rounded">{t('addEmployee')}</button>
                     </div>
                     <div className="space-y-2">
                         {state.employees.map(emp => (
                             <div key={emp.id} className="flex items-center space-x-2 rtl:space-x-reverse">
                                 <input value={emp.name} onChange={(e) => setState(prev => ({ ...prev, employees: prev.employees.map(x => x.id === emp.id ? { ...x, name: e.target.value } : x) }))} className="border rounded px-2 py-1 flex-1" />
-                                <button onClick={() => setState(prev => ({ ...prev, employees: prev.employees.filter(x => x.id !== emp.id) }))} className="px-2 py-1 bg-rose-100 text-rose-700 rounded">Remove</button>
+                                <button onClick={() => setState(prev => ({ ...prev, employees: prev.employees.filter(x => x.id !== emp.id) }))} className="px-2 py-1 bg-rose-100 text-rose-700 rounded">{t('remove')}</button>
                             </div>
                         ))}
                     </div>
@@ -535,8 +629,8 @@
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="bg-white p-4 rounded-lg shadow space-y-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-semibold">Shifts</h2>
-                            <button onClick={addShift} className="px-3 py-1 bg-emerald-600 text-white rounded">Add Shift</button>
+                            <h2 className="text-lg font-semibold">{t('shifts')}</h2>
+                            <button onClick={addShift} className="px-3 py-1 bg-emerald-600 text-white rounded">{t('addShift')}</button>
                         </div>
                         <div className="space-y-3">
                             {state.shifts.map(shift => (
@@ -560,7 +654,7 @@
                         </div>
                     </div>
                     <div className="bg-white p-4 rounded-lg shadow space-y-4">
-                        <h2 className="text-lg font-semibold">Requirements & Constraints</h2>
+                        <h2 className="text-lg font-semibold">{t('requirements')}</h2>
                         <div className="space-y-3">
                             {daysFull.map((day, idx) => (
                                 <div key={day} className="border rounded p-3 space-y-2">
@@ -568,7 +662,7 @@
                                         <div className="font-medium">{day}</div>
                                         <label className="flex items-center space-x-1 rtl:space-x-reverse text-sm">
                                             <input type="checkbox" checked={state.workDays.includes(idx)} onChange={() => toggleWorkDay(idx)} />
-                                            <span>Work Day</span>
+                                            <span>{t('workDay')}</span>
                                         </label>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -592,7 +686,7 @@
                             <label className="text-sm">Min Work Days Between Rests <input type="number" min="0" value={state.constraints.minWorkDaysBetweenRests} onChange={e => setState(prev => ({ ...prev, constraints: { ...prev.constraints, minWorkDaysBetweenRests: Number(e.target.value) } }))} className="border rounded px-2 py-1 w-full" /></label>
                         </div>
                         <div className="space-y-2">
-                            <div className="font-semibold">Holidays</div>
+                            <div className="font-semibold">{t('holidays')}</div>
                             <div className="flex flex-wrap gap-2">
                                 {state.holidays.map(h => (
                                     <span key={h} className="px-2 py-1 bg-amber-100 text-amber-700 rounded inline-flex items-center space-x-1 rtl:space-x-reverse">
@@ -603,8 +697,27 @@
                             </div>
                             <div className="flex items-center space-x-2 rtl:space-x-reverse">
                                 <input type="date" value={state.__holidayDraft || ''} onChange={e => setState(prev => ({ ...prev, __holidayDraft: e.target.value }))} className="border rounded px-2 py-1" />
-                                <button onClick={() => state.__holidayDraft && toggleHoliday(state.__holidayDraft)} className="px-3 py-1 bg-amber-500 text-white rounded">Add Holiday</button>
+                                <button onClick={() => state.__holidayDraft && toggleHoliday(state.__holidayDraft)} className="px-3 py-1 bg-amber-500 text-white rounded">{t('addHoliday')}</button>
                             </div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow space-y-3 lg:col-span-2">
+                        <h2 className="text-lg font-semibold">{t('viewSettings')}</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <label className="text-sm flex flex-col">{t('fontSize')}
+                                <input type="number" min="8" max="24" value={state.viewOptions.fontSize} onChange={e => setState(prev => ({ ...prev, viewOptions: { ...prev.viewOptions, fontSize: Number(e.target.value) } }))} className="border rounded px-2 py-1 mt-1" />
+                            </label>
+                            <label className="text-sm flex flex-col">{t('cellPadding')}
+                                <input type="number" min="4" max="24" value={state.viewOptions.cellPadding} onChange={e => setState(prev => ({ ...prev, viewOptions: { ...prev.viewOptions, cellPadding: Number(e.target.value) } }))} className="border rounded px-2 py-1 mt-1" />
+                            </label>
+                            <label className="text-sm flex items-center space-x-2 rtl:space-x-reverse">
+                                <input type="checkbox" checked={state.viewOptions.showTimes} onChange={e => setState(prev => ({ ...prev, viewOptions: { ...prev.viewOptions, showTimes: e.target.checked } }))} />
+                                <span>{t('showTimes')}</span>
+                            </label>
+                            <label className="text-sm flex items-center space-x-2 rtl:space-x-reverse">
+                                <input type="checkbox" checked={state.viewOptions.showWarnings} onChange={e => setState(prev => ({ ...prev, viewOptions: { ...prev.viewOptions, showWarnings: e.target.checked } }))} />
+                                <span>{t('showWarnings')}</span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -612,10 +725,24 @@
 
             const exportView = () => (
                 <div className="bg-white p-4 rounded-lg shadow space-y-4">
-                    <h2 className="text-lg font-semibold">Export</h2>
+                    <h2 className="text-lg font-semibold">{t('export')}</h2>
                     <div className="flex space-x-2 rtl:space-x-reverse">
-                        <button onClick={exportCSV} className="px-3 py-2 bg-slate-900 text-white rounded">Export CSV</button>
-                        <button onClick={exportExcel} className="px-3 py-2 bg-emerald-600 text-white rounded">Export Excel</button>
+                        <button onClick={exportCSV} className="px-3 py-2 bg-slate-900 text-white rounded">{t('exportCsv')}</button>
+                        <button onClick={exportExcel} className="px-3 py-2 bg-emerald-600 text-white rounded">{t('exportExcel')}</button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="text-sm flex flex-col">{t('office')}
+                            <input value={state.excelOptions.office || ''} onChange={e => setState(prev => ({ ...prev, excelOptions: { ...prev.excelOptions, office: e.target.value } }))} className="border rounded px-2 py-1 mt-1" />
+                        </label>
+                        <label className="text-sm flex flex-col">{t('preparer')}
+                            <input value={state.excelOptions.preparer || ''} onChange={e => setState(prev => ({ ...prev, excelOptions: { ...prev.excelOptions, preparer: e.target.value } }))} className="border rounded px-2 py-1 mt-1" />
+                        </label>
+                        <label className="text-sm flex flex-col">{t('headerColor')}
+                            <input type="color" value={state.excelOptions.headerColor || '#e2e8f0'} onChange={e => setState(prev => ({ ...prev, excelOptions: { ...prev.excelOptions, headerColor: e.target.value } }))} className="mt-1" />
+                        </label>
+                        <label className="text-sm flex flex-col">{t('headerText')}
+                            <input type="color" value={state.excelOptions.headerText || '#0f172a'} onChange={e => setState(prev => ({ ...prev, excelOptions: { ...prev.excelOptions, headerText: e.target.value } }))} className="mt-1" />
+                        </label>
                     </div>
                 </div>
             );
@@ -649,7 +776,7 @@
                             </label>
                         </>
                     )}
-                    <label className="text-sm flex items-center space-x-2 rtl:space-x-reverse">Show Times in Header
+                    <label className="text-sm flex items-center space-x-2 rtl:space-x-reverse">{t('showTimes')}
                         <input type="checkbox" checked={state.viewOptions.showTimes} onChange={e => setState(prev => ({ ...prev, viewOptions: { ...prev.viewOptions, showTimes: e.target.checked } }))} />
                     </label>
                 </div>
@@ -658,7 +785,7 @@
             return (
                 <div className="max-w-7xl mx-auto p-4 space-y-4">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-bold">Dynamic Scheduler</h1>
+                        <h1 className="text-2xl font-bold">{t('title')}</h1>
                         <select value={state.language} onChange={e => setState(prev => ({ ...prev, language: e.target.value }))} className="border rounded px-2 py-1">
                             <option value="en">English</option>
                             <option value="ar">العربية</option>
