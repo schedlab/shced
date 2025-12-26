@@ -109,6 +109,7 @@
                 confirm_clear: "Are you sure you want to clear the current schedule?",
                 err_gen: "Error generating schedule.",
                 issue_imbalance: "IMBALANCE: Shift gap is",
+                max_shift_gap: "Max shifts gap",
                 issue_3day: "3-Day Work streak",
                 issue_viol_streak: "VIOLATION: Has work streaks of 3 days!",
                 issue_viol_rest: "VIOLATION: Rested 3+ days too many times!",
@@ -283,6 +284,7 @@
                 confirm_clear: "هل أنت متأكد من رغبتك في مسح الجدول الحالي؟",
                 err_gen: "حدث خطأ أثناء إنشاء الجدول.",
                 issue_imbalance: "عدم توازن: فجوة الورديات هي",
+                max_shift_gap: "أقصى فارق الورديات",
                 issue_3day: "سلسلة عمل 3 أيام",
                 issue_viol_streak: "مخالفة: لديه سلاسل عمل لمدة 3 أيام!",
                 issue_viol_rest: "مخالفة: ارتاح 3 أيام أو أكثر عدة مرات!",
@@ -493,7 +495,7 @@
             const [shiftStyles, setShiftStyles] = useState(DEFAULT_SHIFT_STYLES);
             const [newShiftDraft, setNewShiftDraft] = useState({ key: '', label: '', icon: '⭐', color: '#e0f2fe', textColor: '#0f172a', duration: 8, isRest: false });
 
-            const [workingDays, setWorkingDays] = useState({ 0: true, 1: true, 2: true, 3: true, 4: true, 5: false, 6: false });
+            const [workingDays, setWorkingDays] = useState({ 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true });
             const [holidayDates, setHolidayDates] = useState([]);
             const [newHoliday, setNewHoliday] = useState('');
 
@@ -502,6 +504,7 @@
                 minWorkBetweenRest: 1,
                 minConsecutiveWork: 1,
                 maxConsecutiveWork: 6,
+                maxShiftGap: 2,
                 minConsecutiveRest: 1,
                 maxConsecutiveRest: 3,
             });
@@ -1724,7 +1727,7 @@
 
            const runYalpsSolver = (days, activeShiftKeys, empList, reqs, holidaysSet) => {
                 const empState = {};
-                empList.forEach(e => { empState[e.id] = { workStreak: 0, restStreak: 0, standbyStreak: 0, history: [] }; });
+                empList.forEach(e => { empState[e.id] = { workStreak: 0, restStreak: 0, standbyStreak: 0, history: [], workCount: 0 }; });
                 const solution = {};
 
                 // 1. Logic Fix: Standby counts as REST
@@ -1799,6 +1802,7 @@
                                     if (isWorkShift(workedShift)) {
                                         currentState.workStreak += 1;
                                         currentState.restStreak = 0;
+                                        currentState.workCount += 1;
                                         currentState.history.push('work');
                                     } else {
                                         // Standby/Rest Shift -> Counts as REST for streaks
@@ -1826,10 +1830,19 @@
                         const candidates = empList
                             .filter(e => !used.has(e.id)) // Not already working today
                             .filter(e => respectsAvailability(e.id, shift, dKey)) // Strict Availability
-                            .sort((a, b) => (preferences[b.id] === shift ? 1 : 0) - (preferences[a.id] === shift ? 1 : 0));
+                            .sort((a, b) => {
+                                const prefDiff = (preferences[b.id] === shift ? 1 : 0) - (preferences[a.id] === shift ? 1 : 0);
+                                if (prefDiff !== 0) return prefDiff;
+                                return (empState[a.id]?.workCount || 0) - (empState[b.id]?.workCount || 0);
+                            });
+                        const minWorkCount = Math.min(...Object.values(empState).map(state => state.workCount || 0));
+                        const gapFilteredCandidates = isWorkShift(shift)
+                            ? candidates.filter(e => (empState[e.id]?.workCount || 0) + 1 - minWorkCount <= patternRules.maxShiftGap)
+                            : candidates;
+                        const finalCandidates = gapFilteredCandidates.length ? gapFilteredCandidates : candidates;
 
-                        for (let i = 0; i < candidates.length; i++) {
-                            const empId = candidates[i].id;
+                        for (let i = 0; i < finalCandidates.length; i++) {
+                            const empId = finalCandidates[i].id;
                             const state = empState[empId];
 
                             // Check Pattern Rules (Min Rest / Max Work) ONLY if this is a "Work" shift
@@ -1897,7 +1910,12 @@
                 const unfilledDays = new Set();
                 let grandTotal = 0;
                 const holidaysSet = new Set(holidayDates || []);
-                employees.forEach(emp => { data[emp.id] = { total: 0, rest: 0, history: [], shifts: {} }; });
+                const shiftKeys = Object.keys(shiftStyles).filter(key => key !== 'off');
+                employees.forEach(emp => {
+                    const shifts = {};
+                    shiftKeys.forEach(key => { shifts[key] = 0; });
+                    data[emp.id] = { total: 0, rest: 0, history: [], shifts };
+                });
                 const activeShiftKeys = getActiveShiftKeys();
                 days.forEach(day => {
                     const dKey = formatDateKey(day);
@@ -1942,7 +1960,9 @@
                 const avg = totals.reduce((a,b)=>a+b,0) / totals.length || 0;
                 const minShifts = Math.min(...totals);
                 const maxShifts = Math.max(...totals);
-                if (maxShifts - minShifts > 2) issues.push(`${t('issue_imbalance')} ${maxShifts - minShifts} (Max 2)`);
+                if (maxShifts - minShifts > patternRules.maxShiftGap) {
+                    issues.push(`${t('issue_imbalance')} ${maxShifts - minShifts} (Max ${patternRules.maxShiftGap})`);
+                }
                 employees.forEach(emp => {
                     let consWork = 0; let consRest = 0; let threeDayWorkStreaks = 0; let longRestPeriods = 0;
                     data[emp.id].history.forEach((val, i) => {
@@ -1954,7 +1974,7 @@
                     if (longRestPeriods > 1) issues.push(`${emp.name}: ${t('issue_viol_rest')}`);
                 });
                 return { data, issues: [...criticalIssues, ...issues], avg, grandTotal, unfilledDays };
-            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd, requirements, shiftStyles, workingDays, holidayDates]);
+            }, [schedule, employees, currentDate, lang, enabledShifts, scheduleMode, rangeStart, rangeEnd, requirements, shiftStyles, workingDays, holidayDates, patternRules]);
 
             const handleBulkAvailability = (empId, status) => {
                 const days = getCalculatedDays();
@@ -2069,6 +2089,10 @@
                                             <input type="number" min="0" value={patternRules.maxConsecutiveWork} onChange={(e)=>setPatternRules(r=>({...r, maxConsecutiveWork: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
                                         </label>
                                         <label className="space-y-1">
+                                            <span className="block text-slate-500 font-semibold">{t('max_shift_gap')}</span>
+                                            <input type="number" min="0" value={patternRules.maxShiftGap} onChange={(e)=>setPatternRules(r=>({...r, maxShiftGap: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
+                                        </label>
+                                        <label className="space-y-1">
                                             <span className="block text-slate-500 font-semibold">Min consecutive rest</span>
                                             <input type="number" min="0" value={patternRules.minConsecutiveRest} onChange={(e)=>setPatternRules(r=>({...r, minConsecutiveRest: Number(e.target.value)}))} className="w-full p-1.5 border rounded" />
                                         </label>
@@ -2145,6 +2169,15 @@
                                         let cardBg = 'bg-transparent';
                                         if (diff > 1.5) cardBg = 'bg-red-50 -mx-2 px-2 py-1 rounded'; 
                                         if (diff < -1.5) cardBg = 'bg-blue-50 -mx-2 px-2 py-1 rounded'; 
+                                        const workShiftItems = getActiveShiftKeys()
+                                            .filter(sh => sh !== 'standby' && !shiftStyles[sh]?.isRest)
+                                            .map(sh => ({
+                                                key: sh,
+                                                label: shiftStyles[sh]?.label || sh,
+                                                count: s.shifts?.[sh] || 0,
+                                                color: shiftStyles[sh]?.color || '#e2e8f0',
+                                            }));
+                                        const standbyCount = s.shifts?.standby || 0;
 
                                         return (
                                             <div key={emp.id} className={`text-sm ${cardBg}`}>
@@ -2160,30 +2193,24 @@
                                                 <span className={`font-mono px-2 py-0.5 rounded text-xs ${Math.abs(s.total - stats.avg) > 1.5 ? 'bg-red-100 text-red-700 font-bold' : 'bg-slate-100'}`}>{s.total}</span>
                                             </div>
                                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex w-full mb-1">
-                                                <div className="bg-amber-400" style={{ width: `${s.total ? (s.morning / s.total) * 100 : 0}%` }}></div>
-                                                <div className="bg-indigo-900" style={{ width: `${s.total ? (s.night / s.total) * 100 : 0}%` }}></div>
-                                                {enabledShifts.nightShift && <div className="bg-purple-900" style={{ width: `${s.total ? (s.nightShift / s.total) * 100 : 0}%` }}></div>}
+                                                {workShiftItems.map(item => (
+                                                    <div key={item.key} style={{ width: `${s.total ? (item.count / s.total) * 100 : 0}%`, backgroundColor: item.color }}></div>
+                                                ))}
                                             </div>
                                             <div className="flex flex-col gap-2 text-[11px] text-slate-600">
                                                 <div className="flex items-center justify-between gap-3 flex-wrap w-full">
-                                                    {[
-                                                        { key: 'morn', label: t('morn'), count: s.morning, dot: 'bg-amber-400', show: true },
-                                                        { key: 'eve', label: t('eve'), count: s.night, dot: 'bg-indigo-900', show: true },
-                                                        { key: 'night', label: t('night'), count: s.nightShift, dot: 'bg-purple-900', show: enabledShifts.nightShift }
-                                                    ]
-                                                        .filter(item => item.show)
-                                                        .map(item => (
-                                                            <div key={item.key} className="flex items-center gap-1">
-                                                                <span className={`w-2 h-2 rounded-full ${item.dot}`}></span>
-                                                                <span>{item.label}</span>
-                                                                <span className="font-semibold text-slate-800">{item.count}</span>
-                                                            </div>
-                                                        ))}
+                                                    {workShiftItems.map(item => (
+                                                        <div key={item.key} className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
+                                                            <span>{item.label}</span>
+                                                            <span className="font-semibold text-slate-800">{item.count}</span>
+                                                        </div>
+                                                    ))}
                                                 </div>
 
                                                 <div className="flex items-center justify-between gap-3 flex-wrap w-full">
                                                     {[
-                                                        { key: 'standby', label: t('standby'), count: s.standbyCount, dot: 'bg-cyan-600', show: enabledShifts.standby },
+                                                        { key: 'standby', label: t('standby'), count: standbyCount, dot: 'bg-cyan-600', show: enabledShifts.standby },
                                                         { key: 'rest', label: t('off'), count: s.rest, dot: 'bg-slate-400', show: true }
                                                     ]
                                                         .filter(item => item.show)
@@ -2717,42 +2744,6 @@
                                                 </tbody>
                                             </table>
                                         </div>
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                                                <div className="flex items-center gap-2 text-slate-800 font-semibold mb-1"><Info size={16}/> {t('rules_title')}</div>
-                                                <p className="text-xs text-slate-500 mb-3">{t('rules_desc')}</p>
-                                                <ul className="space-y-2 text-sm text-slate-700">
-                                                    {(() => {
-                                                        const ruleItems = [t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_evening_only')];
-                                                        if (enabledShifts.nightShift) ruleItems.push(t('rule_night_only'));
-                                                        if (enabledShifts.standby) ruleItems.push(t('rule_standby_only'));
-                                                        ruleItems.push(t('rule_priority'));
-                                                        if (enabledShifts.standby) ruleItems.push(t('rule_standby'));
-                                                        return ruleItems.map((item, idx) => (
-                                                            <li key={idx} className="flex items-start gap-2">
-                                                                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-indigo-500"></span>
-                                                                <span>{item}</span>
-                                                            </li>
-                                                        ));
-                                                    })()}
-                                                </ul>
-                                            </div>
-                                            <div className="bg-white rounded-lg border border-amber-200 shadow-sm p-4">
-                                                <div className="flex items-center gap-2 text-amber-800 font-semibold mb-1"><AlertTriangle size={16}/> {t('warning_rules_title')}</div>
-                                                <p className="text-xs text-slate-500 mb-3">{t('warning_rules_desc')}</p>
-                                                <ul className="space-y-2 text-sm text-slate-700">
-                                                    {(() => {
-                                                        const warningItems = [t('warning_unfilled'), t('warning_imbalance'), t('warning_three_day'), t('warning_violation_streak'), t('warning_violation_rest')];
-                                                        return warningItems.map((item, idx) => (
-                                                            <li key={idx} className="flex items-start gap-2">
-                                                                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-500"></span>
-                                                                <span>{item}</span>
-                                                            </li>
-                                                        ));
-                                                    })()}
-                                                </ul>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -2765,14 +2756,52 @@
                                     </div>
                                     
                                     {activeTab === 'employees' && (
-                                        <div className="w-full max-w-md space-y-2">
-                                            {employees.map((e, i) => (
-                                                <div key={e.id} className="flex gap-2">
-                                                    <input className="flex-1 border p-2 rounded text-slate-700" value={e.name} onChange={ev=>{ const n = [...employees]; n[i].name=ev.target.value; setEmployees(n); }}/>
-                                                    <button onClick={()=>setEmployees(employees.filter(x=>x.id!==e.id))} className="text-red-500 p-2 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        <div className="w-full max-w-3xl space-y-6">
+                                            <div className="space-y-2">
+                                                {employees.map((e, i) => (
+                                                    <div key={e.id} className="flex gap-2">
+                                                        <input className="flex-1 border p-2 rounded text-slate-700" value={e.name} onChange={ev=>{ const n = [...employees]; n[i].name=ev.target.value; setEmployees(n); }}/>
+                                                        <button onClick={()=>setEmployees(employees.filter(x=>x.id!==e.id))} className="text-red-500 p-2 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                                    </div>
+                                                ))}
+                                                <button onClick={()=>setEmployees([...employees, {id:Date.now(), name:'New Staff'}])} className="w-full bg-slate-800 hover:bg-slate-700 text-white p-2 rounded mt-2">{t('add_staff')}</button>
+                                            </div>
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                                <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                                                    <div className="flex items-center gap-2 text-slate-800 font-semibold mb-1"><Info size={16}/> {t('rules_title')}</div>
+                                                    <p className="text-xs text-slate-500 mb-3">{t('rules_desc')}</p>
+                                                    <ul className="space-y-2 text-sm text-slate-700">
+                                                        {(() => {
+                                                            const ruleItems = [t('rule_single_shift'), t('rule_unavailable'), t('rule_morning_only'), t('rule_evening_only')];
+                                                            if (enabledShifts.nightShift) ruleItems.push(t('rule_night_only'));
+                                                            if (enabledShifts.standby) ruleItems.push(t('rule_standby_only'));
+                                                            ruleItems.push(t('rule_priority'));
+                                                            if (enabledShifts.standby) ruleItems.push(t('rule_standby'));
+                                                            return ruleItems.map((item, idx) => (
+                                                                <li key={idx} className="flex items-start gap-2">
+                                                                    <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-indigo-500"></span>
+                                                                    <span>{item}</span>
+                                                                </li>
+                                                            ));
+                                                        })()}
+                                                    </ul>
                                                 </div>
-                                            ))}
-                                            <button onClick={()=>setEmployees([...employees, {id:Date.now(), name:'New Staff'}])} className="w-full bg-slate-800 hover:bg-slate-700 text-white p-2 rounded mt-2">{t('add_staff')}</button>
+                                                <div className="bg-white rounded-lg border border-amber-200 shadow-sm p-4">
+                                                    <div className="flex items-center gap-2 text-amber-800 font-semibold mb-1"><AlertTriangle size={16}/> {t('warning_rules_title')}</div>
+                                                    <p className="text-xs text-slate-500 mb-3">{t('warning_rules_desc')}</p>
+                                                    <ul className="space-y-2 text-sm text-slate-700">
+                                                        {(() => {
+                                                            const warningItems = [t('warning_unfilled'), t('warning_imbalance'), t('warning_three_day'), t('warning_violation_streak'), t('warning_violation_rest')];
+                                                            return warningItems.map((item, idx) => (
+                                                                <li key={idx} className="flex items-start gap-2">
+                                                                    <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-500"></span>
+                                                                    <span>{item}</span>
+                                                                </li>
+                                                            ));
+                                                        })()}
+                                                    </ul>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                     
